@@ -117,3 +117,7 @@ input:focus-visible, button:focus-visible { outline: 2px solid var(--accent); ou
   .toolbar { flex-direction: column; align-items: stretch; gap: 8px; }
   .toolbar span { margin-left: 0; }
 }
+
+a { color: var(--accent); }
+.sep { display: flex; align-items: center; gap: 10px; text-align: center; }
+.sep::before, .sep::after { content: ""; flex: 1; height: 1px; background: var(--border); }

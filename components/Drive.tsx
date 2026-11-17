@@ -5,6 +5,7 @@ import type { User } from "@supabase/supabase-js";
 import { BUCKET, getSupabase, type FileRow } from "@/lib/supabase";
 import { KIND_ICON, formatDate, formatSize, kindOf, safeName } from "@/lib/files";
 import Preview from "./Preview";
+import { CARNET_URL } from "./AuthForm";
 
 const MAX_SIZE = 50 * 1024 * 1024; // 50 Mo, aligné sur la limite du bucket
 
@@ -20,7 +21,7 @@ export default function Drive({ user }: { user: User }) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
-    const { data, error } = await supabase.from("files").select("*").order("created_at", { ascending: false });
+    const { data, error } = await supabase.from("drive_files").select("*").order("created_at", { ascending: false });
     if (error) setError(error.message);
     else setFiles((data ?? []) as FileRow[]);
     setLoading(false);
@@ -47,7 +48,7 @@ export default function Drive({ user }: { user: User }) {
         continue;
       }
       const { error: dbErr } = await supabase
-        .from("files")
+        .from("drive_files")
         .insert({ name: file.name, path, size: file.size, mime_type: file.type || null });
       if (dbErr) {
         await supabase.storage.from(BUCKET).remove([path]);
@@ -76,7 +77,7 @@ export default function Drive({ user }: { user: User }) {
     setError(null);
     const { error: stErr } = await supabase.storage.from(BUCKET).remove([f.path]);
     if (stErr) return setError(stErr.message);
-    const { error: dbErr } = await supabase.from("files").delete().eq("id", f.id);
+    const { error: dbErr } = await supabase.from("drive_files").delete().eq("id", f.id);
     if (dbErr) return setError(dbErr.message);
     setFiles((prev) => prev.filter((x) => x.id !== f.id));
   }
@@ -93,6 +94,7 @@ export default function Drive({ user }: { user: User }) {
       <header className="topbar">
         <h1>Drive</h1>
         <div className="who">
+          <a href={CARNET_URL}>← Le Carnet</a>
           <span className="muted">{user.email}</span>
           <button onClick={() => supabase.auth.signOut()}>Déconnexion</button>
         </div>

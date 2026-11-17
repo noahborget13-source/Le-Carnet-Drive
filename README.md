@@ -6,9 +6,9 @@ Un petit drive personnel : dépose des fichiers, retrouve-les, ouvre-les en aper
 
 ## Fonctionnement
 
-- Connexion par email et mot de passe (Supabase Auth).
+- Connexion avec un compte **Le Carnet** (même projet Supabase : email/mot de passe ou Google). Les comptes se créent sur Le Carnet.
 - Les fichiers sont dans un bucket Supabase **privé** (`drive`), rangés par dossier `{user_id}/…`.
-- La table `public.files` garde le nom d'origine, la taille et le type.
+- La table `public.drive_files` garde le nom d'origine, la taille et le type.
 - Des règles de sécurité (RLS) garantissent que chaque utilisateur ne voit que ses propres fichiers.
 - Aperçu et téléchargement passent par des liens signés temporaires.
 
@@ -29,8 +29,8 @@ npm run dev
 
 ## Base de données
 
-Le schéma (table `files`, bucket `drive`, politiques RLS) est dans `supabase/migrations/`.
+Le schéma (table `drive_files`, bucket `drive`, politiques RLS, ajoutés au projet Supabase de Le Carnet) est dans `supabase/migrations/`.
 
 ## Réglage Supabase à ne pas oublier
 
-Dans *Authentication → URL Configuration*, définir **Site URL** sur l'adresse du site déployé, sinon le lien de confirmation par email pointera vers localhost.
+Dans *Authentication → URL Configuration*, ajouter `https://le-carnet-drive.vercel.app/**` aux **Redirect URLs** (sinon la connexion Google renvoie vers Le Carnet).

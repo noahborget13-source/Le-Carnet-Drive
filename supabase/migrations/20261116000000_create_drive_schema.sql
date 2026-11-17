@@ -1,5 +1,5 @@
 -- Table des fichiers
-create table public.files (
+create table public.drive_files (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
   name text not null,
@@ -9,18 +9,18 @@ create table public.files (
   created_at timestamptz not null default now()
 );
 
-create index files_user_id_created_at_idx on public.files (user_id, created_at desc);
+create index drive_files_user_id_created_at_idx on public.drive_files (user_id, created_at desc);
 
-alter table public.files enable row level security;
+alter table public.drive_files enable row level security;
 
-create policy "files_select_own" on public.files
+create policy "drive_files_select_own" on public.drive_files
   for select to authenticated using ((select auth.uid()) = user_id);
-create policy "files_insert_own" on public.files
+create policy "drive_files_insert_own" on public.drive_files
   for insert to authenticated with check ((select auth.uid()) = user_id);
-create policy "files_update_own" on public.files
+create policy "drive_files_update_own" on public.drive_files
   for update to authenticated
   using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
-create policy "files_delete_own" on public.files
+create policy "drive_files_delete_own" on public.drive_files
   for delete to authenticated using ((select auth.uid()) = user_id);
 
 -- Bucket privé (50 Mo max par fichier)
