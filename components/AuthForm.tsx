@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { getSupabase } from "@/lib/supabase";
+import NotebookMark from "./NotebookMark";
 
 export const CARNET_URL = "https://le-carnet-beta.vercel.app";
 
@@ -38,7 +39,8 @@ export default function AuthForm() {
   return (
     <main className="center">
       <form className="card auth" onSubmit={submit}>
-        <h1>Drive</h1>
+        <div className="logo"><NotebookMark size={34} /></div>
+        <h1>Le Carnet · Drive</h1>
         <p className="muted">Connecte-toi avec ton compte Le Carnet pour accéder à tes fichiers.</p>
 
         <button type="button" onClick={google}>

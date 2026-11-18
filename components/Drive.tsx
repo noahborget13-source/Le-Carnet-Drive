@@ -5,6 +5,7 @@ import type { User } from "@supabase/supabase-js";
 import { BUCKET, getSupabase, type FileRow } from "@/lib/supabase";
 import { KIND_ICON, formatDate, formatSize, kindOf, safeName } from "@/lib/files";
 import Preview from "./Preview";
+import NotebookMark from "./NotebookMark";
 import { CARNET_URL } from "./AuthForm";
 
 const MAX_SIZE = 50 * 1024 * 1024; // 50 Mo, aligné sur la limite du bucket
@@ -92,7 +93,7 @@ export default function Drive({ user }: { user: User }) {
   return (
     <main className="drive">
       <header className="topbar">
-        <h1>Drive</h1>
+        <div className="brand"><NotebookMark size={24} /><span>Le Carnet</span><span className="sub">· Drive</span></div>
         <div className="who">
           <a href={CARNET_URL}>← Le Carnet</a>
           <span className="muted">{user.email}</span>
