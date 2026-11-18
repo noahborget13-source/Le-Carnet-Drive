@@ -6,6 +6,7 @@ import { BUCKET, getSupabase, type FileRow } from "@/lib/supabase";
 import { KIND_ICON, formatDate, formatSize, kindOf, safeName } from "@/lib/files";
 import Preview from "./Preview";
 import NotebookMark from "./NotebookMark";
+import MaintenanceBanner from "./MaintenanceBanner";
 import { CARNET_URL } from "./AuthForm";
 
 const MAX_SIZE = 50 * 1024 * 1024; // 50 Mo, aligné sur la limite du bucket
@@ -92,6 +93,7 @@ export default function Drive({ user }: { user: User }) {
 
   return (
     <main className="drive">
+      <MaintenanceBanner />
       <header className="topbar">
         <div className="brand"><NotebookMark size={24} /><span>Le Carnet</span><span className="sub">· Drive</span></div>
         <div className="who">

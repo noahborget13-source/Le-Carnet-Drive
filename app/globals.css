@@ -167,3 +167,16 @@ a { color: var(--accent); }
   .toolbar { flex-direction: column; align-items: stretch; gap: 8px; }
   .toolbar span { margin-left: 0; }
 }
+
+/* Maintenance : page plein écran façon « maintenance.html » de Le Carnet, avec la marge rouge */
+.maint { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 40px 20px; text-align: center; }
+.maint::before { content: ""; position: fixed; top: 0; bottom: 0; left: clamp(10px, 4.5vw, 64px); width: 1px; background: var(--margin-line); }
+.maint h1 { font-size: 40px; margin: 6px 0 0; }
+.maint p { font-size: 19px; margin: 0; max-width: 560px; }
+.maint .back { font-size: 17px; color: var(--text-dim); }
+.maint small { display: block; max-width: 520px; margin-top: 10px; color: var(--text-dimmer); font-size: 13px; }
+@media (max-width: 600px) { .maint h1 { font-size: 30px; } .maint p { font-size: 17px; } }
+
+/* Bandeau d'avertissement avant une maintenance */
+.banner { margin: 0 0 16px; padding: 10px 14px; border-radius: 12px; border: 1px solid #6b5a1e; background: #2a2410; color: #ffe3a0; font-size: 14px; }
+@media (prefers-color-scheme: light) { .banner { border-color: #e3c566; background: #fff4d6; color: #5c4200; } }

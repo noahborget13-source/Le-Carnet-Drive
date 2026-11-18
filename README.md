@@ -31,6 +31,10 @@ npm run dev
 
 Le schéma (table `drive_files`, bucket `drive`, politiques RLS, ajoutés au projet Supabase de Le Carnet) est dans `supabase/migrations/`.
 
+## Maintenance
+
+Le propriétaire de Le Carnet pilote les maintenances depuis son panel (`/panel/`). Pour chaque maintenance, une case « Appliquer aussi au Drive » décide si le Drive est concerné (décochée par défaut). Le Drive lit la vue `drive_maintenance_active` (colonne `system_alerts.applies_to_drive`, migration 36 du dépôt Le Carnet) : pendant une maintenance, il affiche « Nous revenons très vite ! » puis revient tout seul à l'heure de fin. Un bandeau prévient à l'avance si la maintenance a un message.
+
 ## Réglage Supabase à ne pas oublier
 
 Dans *Authentication → URL Configuration*, ajouter `https://le-carnet-drive.vercel.app/**` aux **Redirect URLs** (sinon la connexion Google renvoie vers Le Carnet).
