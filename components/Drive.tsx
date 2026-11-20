@@ -97,6 +97,7 @@ export default function Drive({ user }: { user: User }) {
       <header className="topbar">
         <div className="brand"><NotebookMark size={24} /><span>Le Carnet</span><span className="sub">· Drive</span></div>
         <div className="who">
+          <a href="/espagnol">🇪🇸 Cours d&apos;espagnol</a>
           <a href={CARNET_URL}>← Le Carnet</a>
           <span className="muted">{user.email}</span>
           <button onClick={() => supabase.auth.signOut()}>Déconnexion</button>

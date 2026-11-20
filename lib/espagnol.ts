@@ -1,0 +1,160 @@
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { safeName } from "./files";
+
+// Les cours d'espagnol utilisent leur propre projet Supabase (comptes prof/élèves séparés de Le Carnet)
+let client: SupabaseClient | null = null;
+
+export function getEs(): SupabaseClient {
+  if (!client) {
+    const url = process.env.NEXT_PUBLIC_ESPAGNOL_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_ESPAGNOL_SUPABASE_KEY;
+    if (!url || !key) {
+      throw new Error(
+        "Variables NEXT_PUBLIC_ESPAGNOL_SUPABASE_URL et NEXT_PUBLIC_ESPAGNOL_SUPABASE_KEY manquantes."
+      );
+    }
+    client = createClient(url, key, { auth: { storageKey: "espagnol-auth" } });
+  }
+  return client;
+}
+
+export const ES_BUCKET = "espagnol";
+export const MAX_SIZE = 50 * 1024 * 1024; // 50 Mo, aligné sur la limite du bucket
+
+export type Role = "teacher" | "student";
+
+export type Profile = {
+  id: string;
+  email: string | null;
+  full_name: string;
+  role: Role;
+};
+
+export type ClassRow = {
+  id: string;
+  name: string;
+  code: string;
+  created_at: string;
+};
+
+export type Folder = {
+  id: string;
+  parent_id: string | null;
+  name: string;
+};
+
+export type EsFile = {
+  id: string;
+  folder_id: string | null;
+  name: string;
+  path: string;
+  size: number;
+  mime_type: string | null;
+  created_at: string;
+};
+
+export type SubFile = {
+  id: string;
+  submission_id: string;
+  name: string;
+  path: string;
+  size: number;
+  mime_type: string | null;
+};
+
+export type PostKind = "resource" | "assignment" | "announcement";
+
+export const KIND_LABEL: Record<PostKind, string> = {
+  resource: "Ressource",
+  assignment: "Devoir",
+  announcement: "Annonce",
+};
+
+export type Post = {
+  id: string;
+  class_id: string;
+  kind: PostKind;
+  title: string;
+  body: string;
+  due_at: string | null;
+  published: boolean;
+  created_at: string;
+  es_post_files: { es_files: EsFile | null }[];
+};
+
+export type Submission = {
+  id: string;
+  post_id: string;
+  student_id: string;
+  body: string;
+  submitted_at: string;
+  grade: string | null;
+  feedback: string | null;
+  es_submission_files: SubFile[];
+};
+
+export function postFiles(p: Post): EsFile[] {
+  return p.es_post_files.map((x) => x.es_files).filter((f): f is EsFile => f !== null);
+}
+
+export function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString("fr-FR", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+// Valeur d'un <input type="datetime-local"> (heure locale) → ISO
+export function localToIso(value: string): string | null {
+  return value ? new Date(value).toISOString() : null;
+}
+
+export async function downloadFile(f: { name: string; path: string }): Promise<string | null> {
+  const { data, error } = await getEs().storage.from(ES_BUCKET).createSignedUrl(f.path, 60, { download: f.name });
+  if (error || !data) return error?.message ?? "Téléchargement impossible.";
+  window.location.href = data.signedUrl;
+  return null;
+}
+
+// Envoie des fichiers dans la bibliothèque du prof ; renvoie les fichiers créés et les erreurs
+export async function uploadToLibrary(
+  files: File[],
+  userId: string,
+  folderId: string | null,
+  onProgress?: (name: string | null) => void
+): Promise<{ created: EsFile[]; errors: string[] }> {
+  const es = getEs();
+  const created: EsFile[] = [];
+  const errors: string[] = [];
+  for (const file of files) {
+    if (file.size > MAX_SIZE) {
+      errors.push(`${file.name} dépasse la limite de 50 Mo.`);
+      continue;
+    }
+    onProgress?.(file.name);
+    const path = `lib/${userId}/${crypto.randomUUID()}-${safeName(file.name)}`;
+    const { error: upErr } = await es.storage
+      .from(ES_BUCKET)
+      .upload(path, file, { contentType: file.type || "application/octet-stream" });
+    if (upErr) {
+      errors.push(`${file.name} : ${upErr.message}`);
+      continue;
+    }
+    const { data, error: dbErr } = await es
+      .from("es_files")
+      .insert({ name: file.name, path, size: file.size, mime_type: file.type || null, folder_id: folderId })
+      .select()
+      .single();
+    if (dbErr || !data) {
+      await es.storage.from(ES_BUCKET).remove([path]);
+      errors.push(`${file.name} : ${dbErr?.message ?? "erreur"}`);
+      continue;
+    }
+    created.push(data as EsFile);
+  }
+  onProgress?.(null);
+  return { created, errors };
+}

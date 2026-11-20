@@ -1,0 +1,338 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  ES_BUCKET,
+  KIND_LABEL,
+  MAX_SIZE,
+  formatDateTime,
+  getEs,
+  postFiles,
+  type ClassRow,
+  type Post,
+  type Submission,
+} from "@/lib/espagnol";
+import { safeName } from "@/lib/files";
+import Attachments from "./Attachments";
+
+export default function Student({ userId }: { userId: string }) {
+  const es = getEs();
+  const [classes, setClasses] = useState<ClassRow[]>([]);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [code, setCode] = useState("");
+  const [joining, setJoining] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const { data, error } = await es.from("es_classes").select("id,name,code,created_at").order("created_at");
+    if (error) setError(error.message);
+    else {
+      const list = (data ?? []) as ClassRow[];
+      setClasses(list);
+      setSelected((cur) => (cur && list.some((x) => x.id === cur) ? cur : list[0]?.id ?? null));
+    }
+    setLoading(false);
+  }, [es]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function join(e: React.FormEvent) {
+    e.preventDefault();
+    setJoining(true);
+    setError(null);
+    const { data, error } = await es.rpc("es_join_class", { p_code: code });
+    setJoining(false);
+    if (error) return setError(error.message);
+    setCode("");
+    await load();
+    if (typeof data === "string") setSelected(data);
+  }
+
+  if (loading) return <p className="muted">Chargement…</p>;
+
+  return (
+    <>
+      <div className="class-picker">
+        {classes.map((c) => (
+          <button key={c.id} className={c.id === selected ? "on" : ""} onClick={() => setSelected(c.id)}>
+            {c.name}
+          </button>
+        ))}
+        <form className="join" onSubmit={join}>
+          <input
+            type="text"
+            placeholder="Code de classe"
+            value={code}
+            maxLength={12}
+            onChange={(e) => setCode(e.target.value)}
+            aria-label="Code de classe"
+          />
+          <button className="primary" disabled={joining || !code.trim()}>Rejoindre</button>
+        </form>
+      </div>
+      {error && <p className="error">{error}</p>}
+      {selected ? (
+        <Feed key={selected} userId={userId} classId={selected} />
+      ) : (
+        <p className="muted empty">
+          Tu n&apos;as encore rejoint aucune classe. Saisis le code donné par ton professeur ci-dessus.
+        </p>
+      )}
+    </>
+  );
+}
+
+function Feed({ userId, classId }: { userId: string; classId: string }) {
+  const es = getEs();
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [subs, setSubs] = useState<Submission[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const p = await es
+      .from("es_posts")
+      .select("*, es_post_files(es_files(*))")
+      .eq("class_id", classId)
+      .order("created_at", { ascending: false });
+    if (p.error) {
+      setError(p.error.message);
+      setLoading(false);
+      return;
+    }
+    const list = (p.data ?? []) as Post[];
+    setPosts(list);
+    const ids = list.filter((x) => x.kind === "assignment").map((x) => x.id);
+    if (ids.length) {
+      const s = await es.from("es_submissions").select("*, es_submission_files(*)").in("post_id", ids);
+      if (s.error) setError(s.error.message);
+      else setSubs((s.data ?? []) as Submission[]);
+    } else setSubs([]);
+    setLoading(false);
+  }, [es, classId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  if (loading) return <p className="muted">Chargement…</p>;
+  if (error) return <p className="error">{error}</p>;
+  if (posts.length === 0) return <p className="muted empty">Ton professeur n&apos;a encore rien publié.</p>;
+
+  return (
+    <div className="posts">
+      {posts.map((p) => (
+        <StudentPost
+          key={p.id}
+          post={p}
+          userId={userId}
+          sub={subs.find((s) => s.post_id === p.id) ?? null}
+          onChanged={load}
+        />
+      ))}
+    </div>
+  );
+}
+
+function StudentPost({
+  post,
+  userId,
+  sub,
+  onChanged,
+}: {
+  post: Post;
+  userId: string;
+  sub: Submission | null;
+  onChanged: () => void;
+}) {
+  const files = postFiles(post);
+  const overdue = post.due_at !== null && new Date(post.due_at) < new Date();
+  const status = sub ? (sub.grade ? "Noté" : "Rendu") : overdue ? "En retard" : "À rendre";
+
+  return (
+    <article className={`card post kind-${post.kind}`}>
+      <header>
+        <span className={`badge ${post.kind}`}>{KIND_LABEL[post.kind]}</span>
+        {post.kind === "assignment" && (
+          <span className={`badge status ${sub ? "done" : overdue ? "late" : "todo"}`}>{status}</span>
+        )}
+        <span className="muted small date">{formatDateTime(post.created_at)}</span>
+      </header>
+      <h3>{post.title}</h3>
+      {post.due_at && <p className="due small">📅 À rendre avant le {formatDateTime(post.due_at)}</p>}
+      {post.body && <p className="body">{post.body}</p>}
+      <Attachments files={files} />
+      {post.kind === "assignment" && <SubmitBox post={post} userId={userId} sub={sub} onChanged={onChanged} />}
+    </article>
+  );
+}
+
+function SubmitBox({
+  post,
+  userId,
+  sub,
+  onChanged,
+}: {
+  post: Post;
+  userId: string;
+  sub: Submission | null;
+  onChanged: () => void;
+}) {
+  const es = getEs();
+  const [editing, setEditing] = useState(sub === null);
+  const [body, setBody] = useState(sub?.body ?? "");
+  const [picked, setPicked] = useState<File[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  async function send(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    const tooBig = picked.find((f) => f.size > MAX_SIZE);
+    if (tooBig) return setError(`${tooBig.name} dépasse la limite de 50 Mo.`);
+    if (!body.trim() && picked.length === 0 && !(sub && sub.es_submission_files.length)) {
+      return setError("Ajoute un texte ou un fichier avant d'envoyer.");
+    }
+    setBusy(true);
+
+    let subId = sub?.id ?? null;
+    if (subId) {
+      const { error } = await es
+        .from("es_submissions")
+        .update({ body: body.trim(), submitted_at: new Date().toISOString() })
+        .eq("id", subId);
+      if (error) {
+        setBusy(false);
+        return setError(error.message);
+      }
+    } else {
+      const { data, error } = await es
+        .from("es_submissions")
+        .insert({ post_id: post.id, body: body.trim() })
+        .select("id")
+        .single();
+      if (error || !data) {
+        setBusy(false);
+        return setError(error?.message ?? "Envoi impossible.");
+      }
+      subId = data.id as string;
+    }
+
+    const errors: string[] = [];
+    for (const file of picked) {
+      const path = `sub/${userId}/${post.id}/${crypto.randomUUID()}-${safeName(file.name)}`;
+      const up = await es.storage
+        .from(ES_BUCKET)
+        .upload(path, file, { contentType: file.type || "application/octet-stream" });
+      if (up.error) {
+        errors.push(`${file.name} : ${up.error.message}`);
+        continue;
+      }
+      const ins = await es.from("es_submission_files").insert({
+        submission_id: subId,
+        name: file.name,
+        path,
+        size: file.size,
+        mime_type: file.type || null,
+      });
+      if (ins.error) {
+        await es.storage.from(ES_BUCKET).remove([path]);
+        errors.push(`${file.name} : ${ins.error.message}`);
+      }
+    }
+
+    setBusy(false);
+    if (errors.length) setError(errors.join(" · "));
+    setPicked([]);
+    if (inputRef.current) inputRef.current.value = "";
+    setEditing(false);
+    onChanged();
+  }
+
+  async function removeFile(f: { id: string; path: string }) {
+    await es.storage.from(ES_BUCKET).remove([f.path]);
+    const { error } = await es.from("es_submission_files").delete().eq("id", f.id);
+    if (error) setError(error.message);
+    else onChanged();
+  }
+
+  async function withdraw() {
+    if (!sub || !window.confirm("Annuler ton rendu ? Ton texte et tes fichiers seront supprimés.")) return;
+    const paths = sub.es_submission_files.map((f) => f.path);
+    if (paths.length) await es.storage.from(ES_BUCKET).remove(paths);
+    const { error } = await es.from("es_submissions").delete().eq("id", sub.id);
+    if (error) setError(error.message);
+    else {
+      setBody("");
+      setEditing(true);
+      onChanged();
+    }
+  }
+
+  return (
+    <div className="submit-box">
+      {sub && (
+        <div className="mine">
+          <p className="small">
+            <strong>Ton rendu</strong> <span className="muted">· envoyé le {formatDateTime(sub.submitted_at)}</span>
+          </p>
+          {sub.body && <p className="body">{sub.body}</p>}
+          <Attachments files={sub.es_submission_files} onRemove={editing ? removeFile : undefined} />
+          {(sub.grade || sub.feedback) && (
+            <div className="grade">
+              {sub.grade && <p><strong>Note : {sub.grade}</strong></p>}
+              {sub.feedback && <p>💬 {sub.feedback}</p>}
+            </div>
+          )}
+        </div>
+      )}
+
+      {editing ? (
+        <form onSubmit={send}>
+          <label>
+            {sub ? "Modifier ton texte" : "Ta réponse (facultatif si tu joins un fichier)"}
+            <textarea rows={3} value={body} onChange={(e) => setBody(e.target.value)} />
+          </label>
+          <div className="attach-bar">
+            <input
+              ref={inputRef}
+              type="file"
+              multiple
+              hidden
+              onChange={(e) => setPicked((prev) => prev.concat(Array.from(e.target.files ?? [])))}
+            />
+            <button type="button" onClick={() => inputRef.current?.click()}>⬆ Ajouter des fichiers</button>
+            {picked.map((f, i) => (
+              <span key={i} className="chip">
+                <span className="text">{f.name}</span>
+                <button
+                  type="button"
+                  className="mini danger"
+                  aria-label={`Retirer ${f.name}`}
+                  onClick={() => setPicked((prev) => prev.filter((_, j) => j !== i))}
+                >
+                  ✕
+                </button>
+              </span>
+            ))}
+          </div>
+          {error && <p className="error">{error}</p>}
+          <div className="post-actions">
+            <button className="primary" disabled={busy}>{busy ? "Envoi…" : sub ? "Mettre à jour mon rendu" : "Rendre le devoir"}</button>
+            {sub && <button type="button" onClick={() => setEditing(false)}>Annuler</button>}
+          </div>
+        </form>
+      ) : (
+        <div className="post-actions">
+          <button onClick={() => setEditing(true)}>Modifier mon rendu</button>
+          <button className="danger" onClick={withdraw}>Retirer mon rendu</button>
+          {error && <p className="error">{error}</p>}
+        </div>
+      )}
+    </div>
+  );
+}

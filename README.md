@@ -38,3 +38,16 @@ Le propriétaire de Le Carnet pilote les maintenances depuis son panel (`/panel/
 ## Réglage Supabase à ne pas oublier
 
 Dans *Authentication → URL Configuration*, ajouter `https://le-carnet-drive.vercel.app/**` aux **Redirect URLs** (sinon la connexion Google renvoie vers Le Carnet).
+
+## Cours d'espagnol (`/espagnol`)
+
+Un onglet « 🇪🇸 Cours d'espagnol » du Drive : espace **professeur** et espace **élèves**, avec des comptes **séparés** de Le Carnet.
+
+- **Prof** : bibliothèque de fichiers (dossiers, aperçu, téléchargement), classes avec code d'invitation, publications (ressources, devoirs avec date limite, annonces) avec fichiers joints, brouillon/publié, rendus des élèves, notes et commentaires.
+- **Élève** : crée un compte, rejoint une classe avec le code, voit les contenus publiés, rend ses devoirs (texte + fichiers) et lit sa note.
+- Données : projet Supabase « drive » (migration dans `supabase/espagnol/`), bucket privé `espagnol`, sécurité RLS (un élève ne voit que sa classe et ses propres rendus).
+- Le rôle **prof** est donné automatiquement aux adresses listées dans la table `es_teachers` ; toutes les autres inscriptions sont des élèves. Pour ajouter un prof : `insert into public.es_teachers (email) values ('prof@exemple.fr');` **avant** qu'il crée son compte.
+
+Variables d'environnement : `NEXT_PUBLIC_ESPAGNOL_SUPABASE_URL` et `NEXT_PUBLIC_ESPAGNOL_SUPABASE_KEY`.
+
+Réglage Supabase (projet « drive ») : *Authentication → URL Configuration* : mettre l'URL du site en **Site URL** et ajouter `https://le-carnet-drive.vercel.app/**` aux **Redirect URLs** (liens de confirmation d'email). Laisser « Confirm email » activé.
