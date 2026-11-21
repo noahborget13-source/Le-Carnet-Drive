@@ -1,26 +1,42 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { getEs, type AppelTarget, type ClassRow, type Profile } from "@/lib/espagnol";
-import Library from "./Library";
+import { getEs, mondayOf, weekKindOf, type AppelTarget, type ClassRow, type Profile } from "@/lib/espagnol";
+import NotebookMark from "../NotebookMark";
 import AppelPage from "./AppelPage";
-import Timetable from "./Timetable";
+import Home from "./Home";
+import Library from "./Library";
 import TeacherClass from "./TeacherClass";
+import Timetable from "./Timetable";
 
-export default function Teacher({ userId }: { userId: string }) {
+type Tab = "home" | "timetable" | "appel" | "classes" | "library";
+
+const NAV: { id: Tab; icon: string; label: string }[] = [
+  { id: "home", icon: "🏠", label: "Accueil" },
+  { id: "timetable", icon: "🗓", label: "Emploi du temps" },
+  { id: "appel", icon: "✅", label: "Appel" },
+  { id: "classes", icon: "📒", label: "Cahier de textes" },
+  { id: "library", icon: "📚", label: "Ressources" },
+];
+
+// Espace professeur : en-tête, onglets, pages (présentation inspirée de Pronote)
+export default function Teacher({ profile, onSignOut }: { profile: Profile; onSignOut: () => void }) {
+  const userId = profile.id;
   const es = getEs();
-  const [tab, setTab] = useState<"timetable" | "appel" | "classes" | "library">("timetable");
+  const [tab, setTab] = useState<Tab>("home");
   const [classes, setClasses] = useState<ClassRow[]>([]);
   const [profiles, setProfiles] = useState<Map<string, Profile>>(new Map());
   const [selected, setSelected] = useState<string | null>(null);
+  const [q1, setQ1] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [appel, setAppel] = useState<AppelTarget | null>(null);
 
   const load = useCallback(async () => {
-    const [c, p] = await Promise.all([
+    const [c, p, st] = await Promise.all([
       es.from("es_classes").select("id,name,code,created_at").order("created_at"),
       es.from("es_profiles").select("id,email,full_name,role"),
+      es.from("es_settings").select("q1_monday").limit(1).maybeSingle(),
     ]);
     if (c.error) setError(c.error.message);
     else if (p.error) setError(p.error.message);
@@ -28,6 +44,7 @@ export default function Teacher({ userId }: { userId: string }) {
       const list = (c.data ?? []) as ClassRow[];
       setClasses(list);
       setProfiles(new Map(((p.data ?? []) as Profile[]).map((x): [string, Profile] => [x.id, x])));
+      setQ1((st.data as { q1_monday: string } | null)?.q1_monday ?? null);
       setSelected((cur) => (cur && list.some((x) => x.id === cur) ? cur : list[0]?.id ?? null));
     }
     setLoading(false);
@@ -37,9 +54,9 @@ export default function Teacher({ userId }: { userId: string }) {
     load();
   }, [load]);
 
-  // Rafraîchit les noms des élèves quand on revient sur l'onglet Classes
+  // Rafraîchit les noms des élèves quand on revient sur une page qui les utilise
   useEffect(() => {
-    if (tab === "classes") load();
+    if (tab === "classes" || tab === "appel" || tab === "home") load();
   }, [tab, load]);
 
   async function newClass() {
@@ -51,70 +68,103 @@ export default function Teacher({ userId }: { userId: string }) {
     if (data) setSelected(data.id);
   }
 
-  const current = classes.find((c) => c.id === selected) ?? null;
-
   function openAppel(t: AppelTarget) {
     setAppel(t);
     setTab("appel");
   }
 
-  const nav: { id: typeof tab; icon: string; label: string }[] = [
-    { id: "timetable", icon: "🗓", label: "Emploi du temps" },
-    { id: "appel", icon: "✅", label: "Appel" },
-    { id: "classes", icon: "📒", label: "Cahier de textes" },
-    { id: "library", icon: "📚", label: "Ressources" },
-  ];
+  const current = classes.find((c) => c.id === selected) ?? null;
+  const monday = mondayOf(new Date());
+  const weekKind = weekKindOf(monday, q1);
+  const dateLabel = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
   return (
-    <div className="shell">
-      <nav className="side" aria-label="Menu professeur">
-        {nav.map((n) => (
+    <div className="pn">
+      <header className="pn-header">
+        <div className="pn-brand">
+          <NotebookMark size={26} />
+          <span>Cours d&apos;espagnol</span>
+          <span className="pn-role">Espace Professeur</span>
+        </div>
+        <div className="pn-head-right">
+          <span className="pn-date">{dateLabel}</span>
+          <span className={`badge wk-${weekKind} pn-week`} title="Semaine Q1 / Q2">Semaine {weekKind.toUpperCase()}</span>
+          <a href="/">Drive</a>
+          <span className="pn-user">{profile.full_name || profile.email}</span>
+          <button onClick={onSignOut}>Déconnexion</button>
+        </div>
+      </header>
+
+      <nav className="pn-tabs" aria-label="Menu professeur">
+        {NAV.map((n) => (
           <button key={n.id} className={tab === n.id ? "on" : ""} onClick={() => setTab(n.id)}>
-            <span aria-hidden="true">{n.icon}</span> {n.label}
+            <span className="ico" aria-hidden="true">{n.icon}</span>
+            <span>{n.label}</span>
           </button>
         ))}
       </nav>
-      <div className="content">
+
+      <main className="pn-page">
         {error && <p className="error">{error}</p>}
-        {loading && tab !== "library" ? (
+        {tab === "library" ? (
+          <>
+            <h1 className="pn-title">Ressources</h1>
+            <Library userId={userId} />
+          </>
+        ) : loading ? (
           <p className="muted">Chargement…</p>
-        ) : tab === "library" ? (
-          <Library userId={userId} />
+        ) : tab === "home" ? (
+          <>
+            <h1 className="pn-title">Bonjour {profile.full_name.split(/\s+/)[0] || ""} 👋</h1>
+            <Home classes={classes} profiles={profiles} onOpenAppel={openAppel} onGo={setTab} />
+          </>
         ) : tab === "timetable" ? (
-          <Timetable classes={classes} userId={userId} onSelect={openAppel} />
+          <>
+            <h1 className="pn-title">Mon emploi du temps</h1>
+            <Timetable classes={classes} userId={userId} onSelect={openAppel} />
+          </>
         ) : tab === "appel" ? (
-          <AppelPage classes={classes} profiles={profiles} userId={userId} target={appel} onTarget={setAppel} />
+          <>
+            <h1 className="pn-title">Appel</h1>
+            <AppelPage classes={classes} profiles={profiles} userId={userId} target={appel} onTarget={setAppel} />
+          </>
         ) : (
           <>
-            <div className="class-picker">
-              {classes.map((c) => (
-                <button key={c.id} className={c.id === selected ? "on" : ""} onClick={() => setSelected(c.id)}>
-                  {c.name}
-                </button>
-              ))}
-              <button className="primary" onClick={newClass}>+ Nouvelle classe</button>
+            <h1 className="pn-title">Cahier de textes</h1>
+            <div className="pn-split">
+              <aside className="pn-list">
+                <h3>Mes classes</h3>
+                {classes.map((c) => (
+                  <button key={c.id} className={c.id === selected ? "on" : ""} onClick={() => setSelected(c.id)}>
+                    {c.name}
+                  </button>
+                ))}
+                <button className="add" onClick={newClass}>+ Nouvelle classe</button>
+              </aside>
+              <div className="pn-main">
+                {current ? (
+                  <TeacherClass
+                    key={current.id}
+                    userId={userId}
+                    cls={current}
+                    profiles={profiles}
+                    onProfilesChanged={load}
+                    onOpenAppel={openAppel}
+                    onDeleted={() => {
+                      setSelected(null);
+                      load();
+                    }}
+                  />
+                ) : (
+                  <p className="muted empty">
+                    Crée ta première classe, puis ajoute tes élèves : chacun reçoit un code de connexion.
+                  </p>
+                )}
+              </div>
             </div>
-            {current ? (
-              <TeacherClass
-                key={current.id}
-                userId={userId}
-                cls={current}
-                profiles={profiles}
-                onProfilesChanged={load}
-                onOpenAppel={openAppel}
-                onDeleted={() => {
-                  setSelected(null);
-                  load();
-                }}
-              />
-            ) : (
-              <p className="muted empty">
-                Crée ta première classe, puis ajoute tes élèves : chacun reçoit un code de connexion.
-              </p>
-            )}
           </>
         )}
-      </div>
+      </main>
     </div>
   );
 }

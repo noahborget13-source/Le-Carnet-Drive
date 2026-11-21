@@ -364,20 +364,7 @@ ul.plain { list-style: none; margin: 0; padding: 0; display: flex; flex-directio
 .stars button.star:hover { color: #d98324; }
 .stars button.star.on { color: #e8a317; }
 
-/* ───────── Espace prof façon Pronote : menu latéral, appel, emploi du temps ───────── */
-.drive:has(.shell) { max-width: 1320px; }
-.shell { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 20px; align-items: start; }
-.side { position: sticky; top: 12px; display: flex; flex-direction: column; gap: 4px; background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 8px; box-shadow: var(--shadow); }
-.side button { text-align: left; border: none; border-radius: 9px; padding: 10px 12px; color: var(--text-dim); font-weight: 600; }
-.side button:hover { background: var(--panel-2); color: var(--text); }
-.side button.on { background: var(--accent); color: #fff; }
-.content { min-width: 0; }
-@media (max-width: 860px) {
-  .shell { grid-template-columns: 1fr; }
-  .side { position: static; flex-direction: row; overflow-x: auto; }
-  .side button { white-space: nowrap; }
-}
-
+/* ───────── Espace prof inspiré de Pronote ───────── */
 .badge.wk-q1 { color: #2f6fed; border-color: #2f6fed; margin-left: 6px; }
 .badge.wk-q2 { color: #c2410c; border-color: #c2410c; margin-left: 6px; }
 .ok { color: #2f9e6b; font-weight: 600; }
@@ -419,3 +406,87 @@ table.appel-table { width: 100%; border-collapse: collapse; background: var(--pa
 button.slot.pick { display: block; width: 100%; text-align: left; color: var(--text); cursor: pointer; margin-bottom: 6px; }
 button.slot.pick:hover { border-color: var(--accent); }
 button.slot.pick.selected { background: color-mix(in srgb, var(--accent) 16%, var(--panel)); border-color: var(--accent); }
+
+/* Thème clair bleu, appliqué à tout l'espace professeur (les composants héritent des variables) */
+.pn {
+  --bg: #e9eef4; --bg-2: #dde5ee; --panel: #ffffff; --panel-2: #f3f6fa;
+  --border: #cdd7e3; --border-soft: #b7c4d4; --text: #1c2b3c; --text-dim: #495a6d; --text-dimmer: #6a7a8c;
+  --accent: #0b6bb8; --accent-2: #0a82dc; --danger: #c62828; --ring: #0b6bb8;
+  --shadow: 0 1px 2px rgba(20, 40, 70, 0.08); --accent-glow: rgba(11, 107, 184, 0.18);
+  --margin-line: #cdd7e3; --grid: transparent;
+  color-scheme: light;
+  min-height: 100vh; background: var(--bg); color: var(--text);
+}
+.pn button.primary { box-shadow: none; }
+.pn h1, .pn h2, .pn h3 { font-family: "Figtree", system-ui, sans-serif; }
+
+.pn-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 20px; background: linear-gradient(#0e4f8a, #0a3d6e); color: #fff; }
+.pn-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.05rem; }
+.pn-role { font-weight: 500; font-size: 0.85rem; opacity: 0.85; padding-left: 10px; border-left: 1px solid rgba(255, 255, 255, 0.4); }
+.pn-head-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 0.88rem; }
+.pn-head-right a { color: #cfe6ff; text-decoration: none; }
+.pn-date { text-transform: capitalize; opacity: 0.9; }
+.pn-user { font-weight: 600; }
+.pn-header button { background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.4); color: #fff; }
+.pn-header button:hover { background: rgba(255, 255, 255, 0.22); color: #fff; border-color: #fff; }
+.pn-week { background: #fff; margin: 0 !important; }
+
+.pn-tabs { display: flex; gap: 2px; padding: 0 16px; background: #fff; border-bottom: 1px solid var(--border); overflow-x: auto; }
+.pn-tabs button { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 96px; padding: 8px 14px 7px; border: none; border-bottom: 3px solid transparent; border-radius: 0; color: var(--text-dim); font-weight: 600; font-size: 0.85rem; white-space: nowrap; }
+.pn-tabs button .ico { font-size: 1.25rem; line-height: 1; }
+.pn-tabs button:hover { background: var(--panel-2); color: var(--text); }
+.pn-tabs button.on { color: var(--accent); border-bottom-color: var(--accent); background: #f0f7fd; }
+
+.pn-page { max-width: 1400px; margin: 0 auto; padding: 18px 20px 60px; }
+.pn-title { margin: 0 0 14px; font-size: 1.35rem; color: #0a3d6e; }
+
+.pn-split { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 16px; align-items: start; }
+.pn-list { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.pn-list h3 { margin: 0; padding: 9px 12px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.03em; color: #fff; background: #0e4f8a; }
+.pn-list button { display: block; width: 100%; text-align: left; border: none; border-bottom: 1px solid var(--border); border-radius: 0; padding: 10px 12px; color: var(--text); font-weight: 500; }
+.pn-list button:hover { background: var(--panel-2); }
+.pn-list button.on { background: #dcecfa; color: #0a3d6e; font-weight: 700; }
+.pn-list button.add { color: var(--accent); font-weight: 600; border-bottom: none; }
+.pn-main { min-width: 0; }
+@media (max-width: 860px) { .pn-split { grid-template-columns: 1fr; } .pn-date { display: none; } }
+
+/* Contours plus francs, façon tableau de bord Pronote */
+.pn .card, .pn .list, .pn .day, .pn .widget, .pn table.bilan, .pn table.appel-table { border-radius: 6px; box-shadow: none; }
+.pn .tabs button.on, .pn .class-picker button.on { background: var(--accent); border-color: var(--accent); }
+
+/* Accueil */
+.home { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; align-items: start; }
+.widget { background: var(--panel); border: 1px solid var(--border); overflow: hidden; }
+.widget.wide { grid-column: 1 / -1; padding: 0 0 12px; }
+.widget h3 { margin: 0; padding: 9px 14px; font-size: 0.9rem; color: #fff; background: #0e4f8a; display: flex; align-items: center; gap: 8px; }
+.widget h3 .count { background: #fff; color: #0a3d6e; border-radius: 999px; padding: 0 8px; font-size: 0.75rem; }
+.widget > p { margin: 10px 14px; }
+.wlist { list-style: none; margin: 0; padding: 0; }
+.wlist li { display: flex; align-items: center; gap: 12px; padding: 9px 14px; border-bottom: 1px solid var(--border); }
+.wlist li:last-child { border-bottom: none; }
+.wlist .when { min-width: 82px; font-variant-numeric: tabular-nums; font-weight: 600; font-size: 0.85rem; color: #0a3d6e; }
+.wlist .what { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+/* Emploi du temps : grille horaire */
+.tg-wrap { overflow-x: auto; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; }
+.tg { display: grid; min-width: 640px; }
+.tg-corner, .tg-head { background: #0e4f8a; color: #fff; padding: 8px 6px; text-align: center; display: flex; flex-direction: column; border-left: 1px solid rgba(255, 255, 255, 0.25); }
+.tg-head .muted { color: #cfe3f7; }
+.tg-head.today { background: #0a82dc; }
+.tg-hours { position: relative; background: var(--panel-2); border-right: 1px solid var(--border); }
+.tg-hour { position: absolute; left: 0; right: 0; padding: 2px 6px 0 0; text-align: right; font-size: 0.72rem; color: var(--text-dimmer); border-top: 1px solid var(--border); }
+.tg-col { position: relative; border-left: 1px solid var(--border); background-image: repeating-linear-gradient(to bottom, var(--border) 0, var(--border) 1px, transparent 1px, transparent 56px); }
+.tg-col.today { background-color: #f4faff; }
+.tg-slot { position: absolute; left: 3px; right: 3px; overflow: hidden; text-align: left; padding: 4px 7px; border-radius: 5px; border: 1px solid hsl(var(--hue) 45% 55%); border-left: 5px solid hsl(var(--hue) 55% 42%); background: hsl(var(--hue) 70% 90%); color: #12273d; display: flex; flex-direction: column; gap: 1px; line-height: 1.25; font-size: 0.8rem; cursor: pointer; }
+.tg-slot:hover { filter: brightness(0.97); color: #12273d; border-color: hsl(var(--hue) 55% 40%); }
+.tg-slot:disabled { cursor: default; opacity: 1; }
+.tg-slot.active { outline: 2px solid var(--accent); outline-offset: 1px; }
+.tg-slot strong { font-size: 0.88rem; }
+.tg-time { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 0.75rem; }
+.tg-meta { color: #3b4f66; }
+.tg-ok { color: #1c7a4d; font-weight: 700; font-size: 0.72rem; }
+.slot-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 12px; margin-bottom: 10px; background: #fff8e1; border: 1px solid #ecd48a; border-radius: 6px; }
+
+/* Appel : tableau dense à en-tête bleu */
+.pn .appel-table th { background: #0e4f8a; color: #fff; border-bottom: none; }
+.pn .appel-table th.left { padding-left: 12px; }

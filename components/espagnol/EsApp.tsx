@@ -50,25 +50,26 @@ export default function EsApp() {
   if (!ready) return <main className="center muted">Chargement…</main>;
   if (!session) return <EsAuth />;
 
+  if (profile?.role === "teacher") {
+    return <Teacher profile={profile} onSignOut={() => getEs().auth.signOut()} />;
+  }
+
   return (
     <main className="drive">
       <header className="topbar">
         <div className="brand">
           <NotebookMark size={24} />
           <span>Cours d&apos;espagnol</span>
-          {profile && <span className={`badge role ${profile.role}`}>{profile.role === "teacher" ? "Professeur" : "Élève"}</span>}
+          {profile && <span className="badge role student">Élève</span>}
         </div>
         <div className="who">
-          {profile?.role === "teacher" && <a href="/">← Drive</a>}
-          <span className="muted">{profile?.full_name || session.user.email}</span>
+          <span className="muted">{profile?.full_name}</span>
           <button onClick={() => getEs().auth.signOut()}>Déconnexion</button>
         </div>
       </header>
       {error && <p className="error">{error}</p>}
       {!profile ? (
         !error && <p className="muted">Chargement…</p>
-      ) : profile.role === "teacher" ? (
-        <Teacher userId={profile.id} />
       ) : (
         <Student userId={profile.id} name={profile.full_name} />
       )}

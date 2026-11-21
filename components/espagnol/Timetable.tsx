@@ -19,6 +19,8 @@ import {
   type WeekKind,
 } from "@/lib/espagnol";
 
+const HOUR_PX = 56;
+const minutes = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
 const slotTime = (s: { start_time: string; end_time: string }) => `${hhmm(s.start_time)}–${hhmm(s.end_time)}`;
 
 type Props = {
@@ -40,6 +42,7 @@ export default function Timetable({ classes, userId, readOnly, picker, selectedK
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [active, setActive] = useState<{ slot: Slot; date: string } | null>(null);
 
   const weekStart = toYmd(week);
   const weekEnd = toYmd(addDays(week, 6));
@@ -70,6 +73,9 @@ export default function Timetable({ classes, userId, readOnly, picker, selectedK
 
   const classOf = useMemo(() => new Map(classes.map((c): [string, ClassRow] => [c.id, c])), [classes]);
   const today = toYmd(new Date());
+  const visible = slots.filter((s) => s.week === "all" || s.week === kind);
+  const startH = Math.max(6, Math.min(8, ...visible.map((s) => Math.floor(minutes(s.start_time) / 60))));
+  const endH = Math.min(22, Math.max(17, ...visible.map((s) => Math.ceil(minutes(s.end_time) / 60))));
   const lastDay = !picker && slots.some((s) => s.weekday >= 6) ? 6 : 5;
   const days = Array.from({ length: lastDay }, (_, i) => i + 1);
 
@@ -137,11 +143,8 @@ export default function Timetable({ classes, userId, readOnly, picker, selectedK
 
       {loading ? (
         <p className="muted">Chargement…</p>
-      ) : (
-        <div
-          className="week"
-          style={picker ? undefined : { gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}
-        >
+      ) : picker ? (
+        <div className="week">
           {days.map((wd) => {
             const date = toYmd(addDays(week, wd - 1));
             const daySlots = slots.filter((s) => s.weekday === wd && (s.week === "all" || s.week === kind));
@@ -156,11 +159,14 @@ export default function Timetable({ classes, userId, readOnly, picker, selectedK
                   const session = sessions.find(
                     (x) => x.class_id === s.class_id && x.date === date && hhmm(x.start_time) === hhmm(s.start_time)
                   );
-                  const done = !!session?.validated_at;
                   const t = targetOf(s, date);
                   const selected = !!t && selectedKey === appelKey(t);
-                  const body = (
-                    <>
+                  return (
+                    <button
+                      key={s.id}
+                      className={`slot pick${selected ? " selected" : ""}${session?.validated_at ? " done" : ""}`}
+                      onClick={() => t && onSelect?.(t)}
+                    >
                       <div className="slot-time">
                         {slotTime(s)}
                         {s.week !== "all" && <span className={`badge wk-${s.week}`}>{s.week.toUpperCase()}</span>}
@@ -170,38 +176,104 @@ export default function Timetable({ classes, userId, readOnly, picker, selectedK
                         {s.subject}
                         {s.room ? ` · salle ${s.room}` : ""}
                       </div>
-                    </>
-                  );
-                  if (picker) {
-                    return (
-                      <button
-                        key={s.id}
-                        className={`slot pick${selected ? " selected" : ""}${done ? " done" : ""}`}
-                        onClick={() => t && onSelect?.(t)}
-                      >
-                        {body}
-                        {done && <div className="small ok">✓ Appel fait</div>}
-                      </button>
-                    );
-                  }
-                  return (
-                    <div key={s.id} className={`slot${done ? " done" : ""}`}>
-                      {body}
-                      {!readOnly && (
-                        <div className="slot-actions">
-                          <button className={done ? "" : "primary"} onClick={() => t && onSelect?.(t)}>
-                            {done ? "✓ Appel fait" : session ? "Appel en cours" : "Faire l'appel"}
-                          </button>
-                          <button className="mini danger" onClick={() => removeSlot(s)} aria-label="Supprimer le créneau">✕</button>
-                        </div>
-                      )}
-                    </div>
+                      {session?.validated_at && <div className="small ok">✓ Appel fait</div>}
+                    </button>
                   );
                 })}
               </div>
             );
           })}
         </div>
+      ) : (
+        <>
+          {active && !readOnly && (
+            <div className="slot-bar">
+              <span>
+                <strong>{classOf.get(active.slot.class_id)?.name ?? "Classe"}</strong> · {formatShortDay(active.date)} ·{" "}
+                {slotTime(active.slot)}
+                {active.slot.room ? ` · salle ${active.slot.room}` : ""}
+              </span>
+              <span className="grow" />
+              <button
+                className="primary"
+                onClick={() => {
+                  const t = targetOf(active.slot, active.date);
+                  if (t) onSelect?.(t);
+                }}
+              >
+                Faire l&apos;appel
+              </button>
+              <button className="danger" onClick={() => removeSlot(active.slot).then(() => setActive(null))}>
+                Supprimer le créneau
+              </button>
+              <button onClick={() => setActive(null)} aria-label="Fermer">✕</button>
+            </div>
+          )}
+          <div className="tg-wrap">
+            <div className="tg" style={{ gridTemplateColumns: `46px repeat(${days.length}, minmax(120px, 1fr))` }}>
+              <div className="tg-corner" />
+              {days.map((wd) => {
+                const date = toYmd(addDays(week, wd - 1));
+                return (
+                  <div key={wd} className={`tg-head${date === today ? " today" : ""}`}>
+                    <strong>{DAYS[wd - 1]}</strong>
+                    <span className="muted small">{formatShortDay(date).replace(/^\S+\s/, "")}</span>
+                  </div>
+                );
+              })}
+              <div className="tg-hours" style={{ height: (endH - startH) * HOUR_PX }}>
+                {Array.from({ length: endH - startH }, (_, i) => (
+                  <div key={i} className="tg-hour" style={{ top: i * HOUR_PX }}>
+                    {String(startH + i).padStart(2, "0")}h
+                  </div>
+                ))}
+              </div>
+              {days.map((wd) => {
+                const date = toYmd(addDays(week, wd - 1));
+                const daySlots = slots.filter((s) => s.weekday === wd && (s.week === "all" || s.week === kind));
+                return (
+                  <div
+                    key={wd}
+                    className={`tg-col${date === today ? " today" : ""}`}
+                    style={{ height: (endH - startH) * HOUR_PX }}
+                  >
+                    {daySlots.map((s) => {
+                      const cls = classOf.get(s.class_id);
+                      const idx = Math.max(0, classes.findIndex((c) => c.id === s.class_id));
+                      const top = ((minutes(s.start_time) - startH * 60) * HOUR_PX) / 60;
+                      const height = Math.max(26, ((minutes(s.end_time) - minutes(s.start_time)) * HOUR_PX) / 60);
+                      const session = sessions.find(
+                        (x) => x.class_id === s.class_id && x.date === date && hhmm(x.start_time) === hhmm(s.start_time)
+                      );
+                      const isActive = active?.slot.id === s.id && active.date === date;
+                      return (
+                        <button
+                          key={s.id}
+                          className={`tg-slot${isActive ? " active" : ""}${session?.validated_at ? " done" : ""}`}
+                          style={{ top, height, "--hue": String((idx * 57 + 205) % 360) } as React.CSSProperties}
+                          disabled={readOnly}
+                          onClick={() => setActive({ slot: s, date })}
+                          title={`${cls?.name ?? ""} ${slotTime(s)}`}
+                        >
+                          <span className="tg-time">
+                            {slotTime(s)}
+                            {s.week !== "all" && <span className={`badge wk-${s.week}`}>{s.week.toUpperCase()}</span>}
+                          </span>
+                          <strong>{readOnly && classes.length <= 1 ? s.subject : (cls?.name ?? "Classe")}</strong>
+                          <span className="tg-meta">
+                            {readOnly && classes.length <= 1 ? "" : `${s.subject}`}
+                            {s.room ? ` · ${s.room}` : ""}
+                          </span>
+                          {session?.validated_at && <span className="tg-ok">✓ appel</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </>
       )}
     </section>
   );
