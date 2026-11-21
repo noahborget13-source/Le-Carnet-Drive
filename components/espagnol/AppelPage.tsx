@@ -5,7 +5,7 @@ import { appelKey, type AppelTarget, type ClassRow, type Profile } from "@/lib/e
 import AppelSheet from "./Appel";
 import Timetable from "./Timetable";
 
-// Page « Appel » façon Pronote : la liste d'appel à gauche, l'emploi du temps à droite pour choisir le cours
+// Page « Appel » façon Pronote : la liste d'appel à gauche, l'emploi du temps à gauche pour choisir le cours
 export default function AppelPage({
   classes,
   profiles,
@@ -24,13 +24,6 @@ export default function AppelPage({
 
   return (
     <div className="appel-page">
-      <div className="appel-main">
-        {target ? (
-          <AppelSheet key={appelKey(target)} target={target} profiles={profiles} onSaved={() => setTick((n) => n + 1)} />
-        ) : (
-          <p className="muted empty">Choisis un cours dans l&apos;emploi du temps à droite pour faire l&apos;appel.</p>
-        )}
-      </div>
       <aside className="appel-side">
         <h3>Choisir le cours</h3>
         <Timetable
@@ -42,6 +35,13 @@ export default function AppelPage({
           onSelect={onTarget}
         />
       </aside>
+      <div className="appel-main">
+        {target ? (
+          <AppelSheet key={appelKey(target)} target={target} profiles={profiles} onSaved={() => setTick((n) => n + 1)} />
+        ) : (
+          <p className="muted empty">Choisis un cours dans l&apos;emploi du temps à droite pour faire l&apos;appel.</p>
+        )}
+      </div>
     </div>
   );
 }

@@ -6,8 +6,10 @@ import {
   STATUS_LABEL,
   formatDateTime,
   formatShortDay,
+  fmtNote,
   getEs,
   hhmm,
+  weightedAverage,
   type Attendance,
   type ClassRow,
   type Remark,
@@ -100,6 +102,72 @@ export function StudentLife() {
                 <span className={`badge remark-${r.kind}`}>{REMARK_LABEL[r.kind]}</span> {r.body}
               </span>
               <span className="muted small">{formatDateTime(r.created_at)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+type GradeRow = {
+  value: number | null;
+  absent: boolean;
+  es_assessments: { title: string; date: string; scale: number; coef: number } | null;
+};
+
+// Notes publiées par le professeur
+export function StudentNotes() {
+  const [rows, setRows] = useState<GradeRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    getEs()
+      .from("es_grades")
+      .select("value,absent,es_assessments(title,date,scale,coef)")
+      .then(({ data, error }) => {
+        if (error) setError(error.message);
+        else {
+          const list = (data ?? []) as unknown as GradeRow[];
+          list.sort((a, b) => (b.es_assessments?.date ?? "").localeCompare(a.es_assessments?.date ?? ""));
+          setRows(list);
+        }
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) return <p className="muted">Chargement…</p>;
+  if (error) return <p className="error">{error}</p>;
+
+  const avg = weightedAverage(
+    rows
+      .filter((r) => r.es_assessments)
+      .map((r) => ({ value: r.value, absent: r.absent, scale: r.es_assessments!.scale, coef: r.es_assessments!.coef }))
+  );
+
+  return (
+    <div>
+      <div className="stats">
+        <div className="card stat"><strong>{fmtNote(avg)}</strong><span className="muted small">moyenne /20</span></div>
+        <div className="card stat"><strong>{rows.length}</strong><span className="muted small">note{rows.length > 1 ? "s" : ""}</span></div>
+      </div>
+      <h3 className="sect">Mes notes</h3>
+      {rows.length === 0 ? (
+        <p className="muted empty">Aucune note publiée pour l&apos;instant.</p>
+      ) : (
+        <ul className="list simple">
+          {rows.map((r, i) => (
+            <li key={i}>
+              <span className="text">
+                {r.es_assessments?.title}{" "}
+                <span className="muted small">
+                  · {r.es_assessments ? formatShortDay(r.es_assessments.date) : ""} · coef {r.es_assessments?.coef}
+                </span>
+              </span>
+              <strong>
+                {r.absent ? "Absent" : `${fmtNote(r.value)} / ${r.es_assessments?.scale ?? 20}`}
+              </strong>
             </li>
           ))}
         </ul>

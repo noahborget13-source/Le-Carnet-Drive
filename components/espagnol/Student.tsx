@@ -17,7 +17,7 @@ import {
 } from "@/lib/espagnol";
 import { safeName } from "@/lib/files";
 import Attachments from "./Attachments";
-import { StudentLife, StudentTimetable } from "./StudentLife";
+import { StudentLife, StudentNotes, StudentTimetable } from "./StudentLife";
 
 export default function Student({ userId, name }: { userId: string; name: string }) {
   const es = getEs();
@@ -25,7 +25,7 @@ export default function Student({ userId, name }: { userId: string; name: string
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<"work" | "timetable" | "life">("work");
+  const [tab, setTab] = useState<"work" | "timetable" | "notes" | "life">("work");
 
   const load = useCallback(async () => {
     const { data, error } = await es.from("es_classes").select("id,name,code,created_at").order("created_at");
@@ -52,6 +52,7 @@ export default function Student({ userId, name }: { userId: string; name: string
       <div className="tabs">
         <button className={tab === "work" ? "on" : ""} onClick={() => setTab("work")}>📝 Travail</button>
         <button className={tab === "timetable" ? "on" : ""} onClick={() => setTab("timetable")}>🗓 Emploi du temps</button>
+        <button className={tab === "notes" ? "on" : ""} onClick={() => setTab("notes")}>📊 Notes</button>
         <button className={tab === "life" ? "on" : ""} onClick={() => setTab("life")}>🧾 Vie scolaire</button>
       </div>
       {tab === "work" && classes.length > 1 && (
@@ -66,6 +67,8 @@ export default function Student({ userId, name }: { userId: string; name: string
       {error && <p className="error">{error}</p>}
       {tab === "timetable" ? (
         <StudentTimetable classes={classes} />
+      ) : tab === "notes" ? (
+        <StudentNotes />
       ) : tab === "life" ? (
         <StudentLife />
       ) : selected ? (

@@ -4,19 +4,22 @@ import { useCallback, useEffect, useState } from "react";
 import { getEs, mondayOf, weekKindOf, type AppelTarget, type ClassRow, type Profile } from "@/lib/espagnol";
 import NotebookMark from "../NotebookMark";
 import AppelPage from "./AppelPage";
+import Bilan from "./Bilan";
 import Home from "./Home";
+import Notes from "./Notes";
 import Library from "./Library";
 import TeacherClass from "./TeacherClass";
 import Timetable from "./Timetable";
 
-type Tab = "home" | "timetable" | "appel" | "classes" | "library";
+type Tab = "home" | "timetable" | "classes" | "notes" | "life" | "library";
 
 const NAV: { id: Tab; icon: string; label: string }[] = [
   { id: "home", icon: "🏠", label: "Accueil" },
   { id: "timetable", icon: "🗓", label: "Emploi du temps" },
-  { id: "appel", icon: "✅", label: "Appel" },
   { id: "classes", icon: "📒", label: "Cahier de textes" },
-  { id: "library", icon: "📚", label: "Ressources" },
+  { id: "notes", icon: "📊", label: "Notes" },
+  { id: "life", icon: "✅", label: "Vie scolaire" },
+  { id: "library", icon: "📚", label: "Ressources pédagogiques" },
 ];
 
 // Espace professeur : en-tête, onglets, pages (présentation inspirée de Pronote)
@@ -31,6 +34,7 @@ export default function Teacher({ profile, onSignOut }: { profile: Profile; onSi
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [appel, setAppel] = useState<AppelTarget | null>(null);
+  const [lifeTab, setLifeTab] = useState<"appel" | "bilan">("appel");
 
   const load = useCallback(async () => {
     const [c, p, st] = await Promise.all([
@@ -56,7 +60,7 @@ export default function Teacher({ profile, onSignOut }: { profile: Profile; onSi
 
   // Rafraîchit les noms des élèves quand on revient sur une page qui les utilise
   useEffect(() => {
-    if (tab === "classes" || tab === "appel" || tab === "home") load();
+    if (tab === "classes" || tab === "life" || tab === "notes" || tab === "home") load();
   }, [tab, load]);
 
   async function newClass() {
@@ -70,7 +74,8 @@ export default function Teacher({ profile, onSignOut }: { profile: Profile; onSi
 
   function openAppel(t: AppelTarget) {
     setAppel(t);
-    setTab("appel");
+    setLifeTab("appel");
+    setTab("life");
   }
 
   const current = classes.find((c) => c.id === selected) ?? null;
@@ -108,7 +113,7 @@ export default function Teacher({ profile, onSignOut }: { profile: Profile; onSi
         {error && <p className="error">{error}</p>}
         {tab === "library" ? (
           <>
-            <h1 className="pn-title">Ressources</h1>
+            <h1 className="pn-title">Ressources pédagogiques</h1>
             <Library userId={userId} />
           </>
         ) : loading ? (
@@ -123,10 +128,23 @@ export default function Teacher({ profile, onSignOut }: { profile: Profile; onSi
             <h1 className="pn-title">Mon emploi du temps</h1>
             <Timetable classes={classes} userId={userId} onSelect={openAppel} />
           </>
-        ) : tab === "appel" ? (
+        ) : tab === "notes" ? (
           <>
-            <h1 className="pn-title">Appel</h1>
-            <AppelPage classes={classes} profiles={profiles} userId={userId} target={appel} onTarget={setAppel} />
+            <h1 className="pn-title">Notes</h1>
+            <Notes classes={classes} profiles={profiles} />
+          </>
+        ) : tab === "life" ? (
+          <>
+            <h1 className="pn-title">Vie scolaire</h1>
+            <div className="pn-subtabs">
+              <button className={lifeTab === "appel" ? "on" : ""} onClick={() => setLifeTab("appel")}>Appel</button>
+              <button className={lifeTab === "bilan" ? "on" : ""} onClick={() => setLifeTab("bilan")}>Bilan et observations</button>
+            </div>
+            {lifeTab === "appel" ? (
+              <AppelPage classes={classes} profiles={profiles} userId={userId} target={appel} onTarget={setAppel} />
+            ) : (
+              <Bilan classes={classes} profiles={profiles} onOpenAppel={openAppel} />
+            )}
           </>
         ) : (
           <>

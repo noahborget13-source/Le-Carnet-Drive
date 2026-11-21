@@ -392,3 +392,21 @@ export async function ensureLessonSession(classId: string, l: Lesson): Promise<s
 export function postSortKey(p: Post): string {
   return p.given ? `${p.given.date}T${hhmm(p.given.start_time)}` : p.created_at;
 }
+
+// ───────── Notes ─────────
+export type Assessment = { id: string; class_id: string; title: string; date: string; scale: number; coef: number; published: boolean };
+export type Grade = { assessment_id: string; student_id: string; value: number | null; absent: boolean };
+
+// Moyenne pondérée ramenée sur 20 (les absents et les notes vides sont ignorés)
+export function weightedAverage(items: { value: number | null; absent: boolean; scale: number; coef: number }[]): number | null {
+  let sum = 0;
+  let coefs = 0;
+  for (const i of items) {
+    if (i.absent || i.value === null || i.coef <= 0) continue;
+    sum += (i.value / i.scale) * 20 * i.coef;
+    coefs += i.coef;
+  }
+  return coefs > 0 ? sum / coefs : null;
+}
+
+export const fmtNote = (n: number | null) => (n === null ? "—" : n.toLocaleString("fr-FR", { maximumFractionDigits: 2 }));

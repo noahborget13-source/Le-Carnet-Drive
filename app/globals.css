@@ -490,3 +490,46 @@ button.slot.pick.selected { background: color-mix(in srgb, var(--accent) 16%, va
 /* Appel : tableau dense à en-tête bleu */
 .pn .appel-table th { background: #0e4f8a; color: #fff; border-bottom: none; }
 .pn .appel-table th.left { padding-left: 12px; }
+
+/* ───────── Page Appel façon Pronote : emploi du temps à gauche, grille type tableur à droite ───────── */
+.appel-page { grid-template-columns: minmax(300px, 400px) minmax(0, 1fr); }
+.appel-side { position: sticky; top: 8px; border-radius: 6px; box-shadow: none; padding: 0; overflow: auto; }
+.appel-side h3 { margin: 0; padding: 9px 12px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.03em; color: #fff; background: #0e4f8a; }
+.appel-side .tt { padding: 8px; }
+.appel-side .week-nav { gap: 6px; font-size: 0.8rem; }
+.tg.compact { min-width: 0; }
+.tg.compact .tg-head { padding: 5px 2px; font-size: 0.78rem; }
+.tg.compact .tg-head .muted { display: none; }
+.tg.compact .tg-slot { padding: 2px 4px; font-size: 0.7rem; }
+.tg.compact .tg-time { font-size: 0.64rem; }
+.tg.compact .tg-meta { display: none; }
+.tg-slot.active { outline: 3px solid #0a82dc; outline-offset: 0; box-shadow: 0 0 0 1px #fff inset; }
+@media (max-width: 1000px) { .appel-page { grid-template-columns: 1fr; } }
+
+/* grille type tableur */
+.appel-table { border-collapse: separate; border-spacing: 0; font-size: 0.86rem; }
+.appel-table th, .appel-table td { border-right: 1px solid #cfd8e3; border-bottom: 1px solid #cfd8e3; }
+.appel-table thead th { position: sticky; top: 0; z-index: 2; background: #e7eef6; color: #0a3d6e; border-top: 1px solid #cfd8e3; }
+.appel-table tbody tr:nth-child(even):not(.detail) td { background: #f7fafd; }
+.appel-table tbody tr:hover:not(.detail) td { background: #eaf3fc; }
+.appel-table td:first-child, .appel-table th:first-child { border-left: 1px solid #cfd8e3; position: sticky; left: 0; z-index: 1; background: #e7eef6; }
+.appel-table tbody td:first-child { background: #f0f5fb; }
+.table-wrap { overflow: auto; max-height: calc(100vh - 230px); }
+
+/* notes */
+.notes-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.notes-table th.note-head { min-width: 140px; vertical-align: top; text-transform: none; white-space: normal; }
+.nh-title { font-weight: 700; font-size: 0.85rem; }
+.nh-meta { font-weight: 400; font-size: 0.72rem; color: var(--text-dim); margin: 2px 0 4px; }
+.nh-actions { display: flex; gap: 4px; justify-content: center; }
+.note-cell { padding: 0 !important; }
+.note-cell input { width: 100%; min-width: 70px; border: none; border-radius: 0; text-align: center; background: transparent; padding: 9px 4px; font-weight: 600; }
+.note-cell input:focus { outline: 2px solid #0a82dc; outline-offset: -2px; background: #fff; }
+.notes-table .avg-col { background: #eef4fb !important; font-weight: 700; min-width: 90px; }
+.notes-table tfoot td { background: #e7eef6; text-align: center; font-weight: 600; padding: 8px; border-bottom: 1px solid #cfd8e3; }
+.notes-table tfoot td.left { text-align: left; }
+
+/* sous-onglets Pronote */
+.pn-subtabs { display: flex; gap: 0; margin-bottom: 14px; border-bottom: 2px solid #0e4f8a; }
+.pn-subtabs button { border: 1px solid var(--border); border-bottom: none; border-radius: 6px 6px 0 0; background: var(--panel-2); color: var(--text-dim); font-weight: 600; padding: 8px 18px; margin-right: 3px; }
+.pn-subtabs button.on { background: #0e4f8a; border-color: #0e4f8a; color: #fff; }
