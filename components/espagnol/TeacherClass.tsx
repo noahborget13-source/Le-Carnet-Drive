@@ -15,6 +15,7 @@ import {
   addDays,
   formatDateTime,
   getEs,
+  hhmm,
   postFiles,
   uploadToLibrary,
   type AppelTarget,
@@ -148,6 +149,7 @@ export default function TeacherClass({ userId, cls, profiles, onDeleted, onProfi
               {posts.map((p) => (
                 <PostCard
                   key={p.id}
+                  userId={userId}
                   post={p}
                   subs={subs.filter((s) => s.post_id === p.id)}
                   studentCount={members.length}
@@ -167,16 +169,31 @@ export default function TeacherClass({ userId, cls, profiles, onDeleted, onProfi
 
 // ───────── Création d'une publication ─────────
 
-function Composer({ userId, classId, onCreated }: { userId: string; classId: string; onCreated: () => void }) {
+const sessionKey = (x: { date: string; start_time: string } | null) => (x ? `${x.date}T${hhmm(x.start_time)}` : "");
+
+function Composer({
+  userId,
+  classId,
+  post,
+  onCreated,
+  onCancel,
+}: {
+  userId: string;
+  classId: string;
+  post?: Post; // en modification d'une publication existante
+  onCreated: () => void;
+  onCancel?: () => void;
+}) {
   const es = getEs();
-  const [kind, setKind] = useState<PostKind>("resource");
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
+  const editing = !!post;
+  const [kind, setKind] = useState<PostKind>(post?.kind ?? "resource");
+  const [title, setTitle] = useState(post?.title ?? "");
+  const [body, setBody] = useState(post?.body ?? "");
   const [lessons, setLessons] = useState<Lesson[]>([]);
-  const [givenKey, setGivenKey] = useState("");
-  const [dueKey, setDueKey] = useState("");
-  const [published, setPublished] = useState(true);
-  const [attached, setAttached] = useState<EsFile[]>([]);
+  const [givenKey, setGivenKey] = useState(sessionKey(post?.given ?? null));
+  const [dueKey, setDueKey] = useState(sessionKey(post?.due ?? null));
+  const [published, setPublished] = useState(post?.published ?? true);
+  const [attached, setAttached] = useState<EsFile[]>(post ? postFiles(post) : []);
   const [picking, setPicking] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -197,6 +214,16 @@ function Composer({ userId, classId, onCreated }: { userId: string; classId: str
         addDays(now, -21),
         addDays(now, 42)
       );
+      if (post) {
+        // garde les cours déjà choisis même s'ils sont hors de la fenêtre affichée
+        for (const x of [post.given, post.due]) {
+          if (x && !list.some((l) => l.key === sessionKey(x)))
+            list.push({ key: sessionKey(x), date: x.date, start: hhmm(x.start_time), end: hhmm(x.end_time), room: x.room, slotId: "" });
+        }
+        list.sort((a, b) => a.key.localeCompare(b.key));
+        setLessons(list);
+        return;
+      }
       setLessons(list);
       // par défaut : le cours du jour (ou le dernier cours passé), et le suivant pour l'échéance
       const nowKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}T${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
@@ -207,7 +234,7 @@ function Composer({ userId, classId, onCreated }: { userId: string; classId: str
         setDueKey(list.find((l) => l.key > given.key)?.key ?? "");
       }
     });
-  }, [es, classId]);
+  }, [es, classId, post]);
 
   const hasDue = kind === "assignment" || kind === "todo";
   const dueOptions = lessons.filter((l) => !givenKey || l.key > givenKey);
@@ -228,34 +255,54 @@ function Composer({ userId, classId, onCreated }: { userId: string; classId: str
     setBusy("Publication…");
     const given = lessons.find((l) => l.key === givenKey) ?? null;
     const due = hasDue ? (lessons.find((l) => l.key === dueKey) ?? null) : null;
-    const sessionId = given ? await ensureLessonSession(classId, given) : null;
-    const dueSessionId = due ? await ensureLessonSession(classId, due) : null;
+    const sessionId = !given ? null : post && givenKey === sessionKey(post.given) ? post.session_id : await ensureLessonSession(classId, given);
+    const dueSessionId = !due ? null : post && dueKey === sessionKey(post.due) ? post.due_session_id : await ensureLessonSession(classId, due);
     if ((given && !sessionId) || (due && !dueSessionId)) {
       setBusy(null);
       return setError("Impossible de rattacher la publication à ce cours.");
     }
+    const fields = {
+      title: title.trim(),
+      body: body.trim(),
+      session_id: sessionId,
+      due_session_id: dueSessionId,
+      due_at: due ? lessonStartIso(due) : post && !post.due && post.due_at && hasDue ? post.due_at : null,
+      published,
+    };
+    let postId: string;
+    if (post) {
+      const { error: uErr } = await es.from("es_posts").update(fields).eq("id", post.id);
+      if (uErr) {
+        setBusy(null);
+        return setError(uErr.message);
+      }
+      postId = post.id;
+      const before = postFiles(post).map((f) => f.id);
+      const now = attached.map((f) => f.id);
+      const removed = before.filter((id) => !now.includes(id));
+      if (removed.length) await es.from("es_post_files").delete().eq("post_id", post.id).in("file_id", removed);
+      const added = attached.filter((f) => !before.includes(f.id));
+      if (added.length) {
+        const { error: fErr } = await es.from("es_post_files").insert(added.map((f) => ({ post_id: post.id, file_id: f.id })));
+        if (fErr) setError(fErr.message);
+      }
+      setBusy(null);
+      return onCreated();
+    }
     const { data, error: pErr } = await es
       .from("es_posts")
-      .insert({
-        class_id: classId,
-        kind,
-        title: title.trim(),
-        body: body.trim(),
-        session_id: sessionId,
-        due_session_id: dueSessionId,
-        due_at: due ? lessonStartIso(due) : null,
-        published,
-      })
+      .insert({ class_id: classId, kind, ...fields })
       .select("id")
       .single();
     if (pErr || !data) {
       setBusy(null);
       return setError(pErr?.message ?? "Erreur à la publication.");
     }
+    postId = data.id;
     if (attached.length) {
       const { error: fErr } = await es
         .from("es_post_files")
-        .insert(attached.map((f) => ({ post_id: data.id, file_id: f.id })));
+        .insert(attached.map((f) => ({ post_id: postId, file_id: f.id })));
       if (fErr) setError(fErr.message);
     }
     setTitle("");
@@ -270,7 +317,7 @@ function Composer({ userId, classId, onCreated }: { userId: string; classId: str
       <div className="row">
         <label>
           Type
-          <select value={kind} onChange={(e) => setKind(e.target.value as PostKind)}>
+          <select value={kind} disabled={editing} onChange={(e) => setKind(e.target.value as PostKind)}>
             <option value="resource">Ressource / contenu de cours</option>
             <option value="todo">Travail à faire (rien à rendre)</option>
             <option value="assignment">Travail à rendre (les élèves déposent leur rendu)</option>
@@ -333,7 +380,8 @@ function Composer({ userId, classId, onCreated }: { userId: string; classId: str
           <input type="checkbox" checked={published} onChange={(e) => setPublished(e.target.checked)} />
           Visible tout de suite par les élèves
         </label>
-        <button className="primary" disabled={busy !== null}>{busy ?? "Publier"}</button>
+        {onCancel && <button type="button" onClick={onCancel}>Annuler</button>}
+        <button className="primary" disabled={busy !== null}>{busy ?? (editing ? "Enregistrer" : "Publier")}</button>
       </div>
       {error && <p className="error">{error}</p>}
 
@@ -354,6 +402,7 @@ function Composer({ userId, classId, onCreated }: { userId: string; classId: str
 // ───────── Carte d'une publication ─────────
 
 function PostCard({
+  userId,
   post,
   subs,
   studentCount,
@@ -362,6 +411,7 @@ function PostCard({
   profiles,
   onChanged,
 }: {
+  userId: string;
   post: Post;
   subs: Submission[];
   studentCount: number;
@@ -372,6 +422,7 @@ function PostCard({
 }) {
   const es = getEs();
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const files = postFiles(post);
 
@@ -389,6 +440,20 @@ function PostCard({
     if (error) setError(error.message);
     else onChanged();
   }
+
+  if (editing)
+    return (
+      <Composer
+        userId={userId}
+        classId={post.class_id}
+        post={post}
+        onCancel={() => setEditing(false)}
+        onCreated={() => {
+          setEditing(false);
+          onChanged();
+        }}
+      />
+    );
 
   return (
     <article className={`card post kind-${post.kind}${post.published ? "" : " draft"}`}>
@@ -418,6 +483,7 @@ function PostCard({
             {open ? "Masquer" : "Voir"} les rendus ({subs.length}/{studentCount})
           </button>
         )}
+        <button onClick={() => setEditing(true)}>✏️ Modifier</button>
         <button onClick={togglePublished}>{post.published ? "Masquer aux élèves" : "Publier"}</button>
         <button className="danger" onClick={remove}>Supprimer</button>
       </div>
