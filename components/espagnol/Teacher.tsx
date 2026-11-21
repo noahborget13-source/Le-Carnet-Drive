@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { getEs, type ClassRow, type Profile } from "@/lib/espagnol";
 import Library from "./Library";
+import Timetable from "./Timetable";
 import TeacherClass from "./TeacherClass";
 
 export default function Teacher({ userId }: { userId: string }) {
   const es = getEs();
-  const [tab, setTab] = useState<"classes" | "library">("classes");
+  const [tab, setTab] = useState<"classes" | "timetable" | "library">("classes");
   const [classes, setClasses] = useState<ClassRow[]>([]);
   const [profiles, setProfiles] = useState<Map<string, Profile>>(new Map());
   const [selected, setSelected] = useState<string | null>(null);
@@ -54,12 +55,15 @@ export default function Teacher({ userId }: { userId: string }) {
     <>
       <div className="tabs">
         <button className={tab === "classes" ? "on" : ""} onClick={() => setTab("classes")}>👩‍🏫 Classes</button>
+        <button className={tab === "timetable" ? "on" : ""} onClick={() => setTab("timetable")}>🗓 Emploi du temps</button>
         <button className={tab === "library" ? "on" : ""} onClick={() => setTab("library")}>📚 Bibliothèque</button>
       </div>
       {error && <p className="error">{error}</p>}
 
       {tab === "library" ? (
         <Library userId={userId} />
+      ) : tab === "timetable" ? (
+        loading ? <p className="muted">Chargement…</p> : <Timetable classes={classes} profiles={profiles} />
       ) : loading ? (
         <p className="muted">Chargement…</p>
       ) : (

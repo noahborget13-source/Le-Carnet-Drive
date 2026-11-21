@@ -14,6 +14,7 @@ import {
 } from "@/lib/espagnol";
 import { safeName } from "@/lib/files";
 import Attachments from "./Attachments";
+import { StudentLife, StudentTimetable } from "./StudentLife";
 
 export default function Student({ userId, name }: { userId: string; name: string }) {
   const es = getEs();
@@ -21,6 +22,7 @@ export default function Student({ userId, name }: { userId: string; name: string
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<"work" | "timetable" | "life">("work");
 
   const load = useCallback(async () => {
     const { data, error } = await es.from("es_classes").select("id,name,code,created_at").order("created_at");
@@ -44,7 +46,12 @@ export default function Student({ userId, name }: { userId: string; name: string
   return (
     <>
       <h2 className="hello">Hola{first ? `, ${first}` : ""} 👋</h2>
-      {classes.length > 1 && (
+      <div className="tabs">
+        <button className={tab === "work" ? "on" : ""} onClick={() => setTab("work")}>📝 Travail</button>
+        <button className={tab === "timetable" ? "on" : ""} onClick={() => setTab("timetable")}>🗓 Emploi du temps</button>
+        <button className={tab === "life" ? "on" : ""} onClick={() => setTab("life")}>🧾 Vie scolaire</button>
+      </div>
+      {tab === "work" && classes.length > 1 && (
         <div className="class-picker">
           {classes.map((c) => (
             <button key={c.id} className={c.id === selected ? "on" : ""} onClick={() => setSelected(c.id)}>
@@ -54,7 +61,11 @@ export default function Student({ userId, name }: { userId: string; name: string
         </div>
       )}
       {error && <p className="error">{error}</p>}
-      {selected ? (
+      {tab === "timetable" ? (
+        <StudentTimetable classes={classes} />
+      ) : tab === "life" ? (
+        <StudentLife />
+      ) : selected ? (
         <Feed key={selected} userId={userId} classId={selected} />
       ) : (
         <p className="muted empty">Tu n&apos;as pas encore de classe. Demande à ton professeur.</p>

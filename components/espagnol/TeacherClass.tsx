@@ -18,6 +18,7 @@ import {
 import Attachments from "./Attachments";
 import FilePicker from "./FilePicker";
 import StudentsPanel from "./StudentsPanel";
+import ClassLife from "./ClassLife";
 
 type Props = {
   userId: string;
@@ -36,7 +37,7 @@ export default function TeacherClass({ userId, cls, profiles, onDeleted, onProfi
   const [doneRows, setDoneRows] = useState<{ post_id: string; student_id: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<"posts" | "students">("posts");
+  const [tab, setTab] = useState<"posts" | "students" | "life">("posts");
 
   const load = useCallback(async () => {
     const [p, m, k] = await Promise.all([
@@ -109,11 +110,14 @@ export default function TeacherClass({ userId, cls, profiles, onDeleted, onProfi
         <button className={tab === "students" ? "on" : ""} onClick={() => setTab("students")}>
           Élèves ({members.length})
         </button>
+        <button className={tab === "life" ? "on" : ""} onClick={() => setTab("life")}>Vie scolaire</button>
       </div>
 
       {error && <p className="error">{error}</p>}
 
-      {tab === "students" ? (
+      {tab === "life" ? (
+        <ClassLife cls={cls} members={members} profiles={profiles} />
+      ) : tab === "students" ? (
         <StudentsPanel
           classId={cls.id}
           className={cls.name}

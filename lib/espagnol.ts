@@ -197,3 +197,102 @@ export async function callStudents<T>(body: Record<string, unknown>): Promise<{ 
   if (data && typeof data.error === "string") return { data: null, error: data.error };
   return { data: data as T, error: null };
 }
+
+// ───────── Emploi du temps, appel, observations ─────────
+
+export type Slot = {
+  id: string;
+  class_id: string;
+  weekday: number; // 1 = lundi … 7 = dimanche
+  start_time: string; // « HH:MM:SS »
+  end_time: string;
+  room: string;
+  subject: string;
+};
+
+export type Session = {
+  id: string;
+  class_id: string;
+  slot_id: string | null;
+  date: string; // « AAAA-MM-JJ »
+  start_time: string;
+  end_time: string;
+  room: string;
+  topic: string;
+};
+
+export type AttStatus = "present" | "absent" | "late";
+
+export const STATUS_LABEL: Record<AttStatus, string> = {
+  present: "Présent",
+  absent: "Absent",
+  late: "Retard",
+};
+
+export type Attendance = {
+  session_id: string;
+  student_id: string;
+  status: AttStatus;
+  late_minutes: number | null;
+  excused: boolean;
+  reason: string;
+};
+
+export type RemarkKind = "observation" | "encouragement" | "material" | "homework" | "behaviour" | "punishment";
+
+export const REMARK_LABEL: Record<RemarkKind, string> = {
+  observation: "Observation",
+  encouragement: "Encouragement",
+  material: "Oubli de matériel",
+  homework: "Travail non fait",
+  behaviour: "Comportement",
+  punishment: "Punition",
+};
+
+export type Remark = {
+  id: string;
+  class_id: string;
+  session_id: string | null;
+  student_id: string;
+  kind: RemarkKind;
+  body: string;
+  visible_to_student: boolean;
+  created_at: string;
+};
+
+export const DAYS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
+
+export const hhmm = (t: string) => t.slice(0, 5);
+
+// Date locale → « AAAA-MM-JJ » (sans décalage de fuseau)
+export function toYmd(d: Date): string {
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
+export function fromYmd(s: string): Date {
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+export function addDays(d: Date, n: number): Date {
+  const r = new Date(d);
+  r.setDate(r.getDate() + n);
+  return r;
+}
+
+export function mondayOf(d: Date): Date {
+  const r = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const wd = (r.getDay() + 6) % 7; // lundi = 0
+  r.setDate(r.getDate() - wd);
+  return r;
+}
+
+export function formatDay(ymd: string): string {
+  return fromYmd(ymd).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+}
+
+export function formatShortDay(ymd: string): string {
+  return fromYmd(ymd).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
+}

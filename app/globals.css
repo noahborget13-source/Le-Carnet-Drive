@@ -288,3 +288,72 @@ button.mini { padding: 3px 8px; border-radius: 999px; font-size: 0.8rem; }
 .hello { margin: 0 0 14px; font-size: 1.4rem; }
 .list.students li { grid-template-columns: minmax(0, 1fr) auto auto; }
 .list.students .code { font-size: 1rem; }
+
+/* ───────── Vie scolaire : emploi du temps, appel, observations ───────── */
+input[type="time"], input[type="number"] {
+  background: var(--bg); border: 1px solid var(--border-soft); border-radius: 9px;
+  padding: 8px 10px; font: inherit; color: inherit; outline: none;
+}
+.sect { margin: 22px 0 10px; font-size: 1.05rem; }
+.grow { flex: 1; }
+
+.week-nav { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.week { display: grid; gap: 10px; align-items: start; }
+.day { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 10px; min-width: 0; box-shadow: var(--shadow); }
+.day.today { border-color: var(--accent); }
+.day h3 { margin: 0 0 8px; font-size: 0.95rem; }
+.slot { border: 1px solid var(--border-soft); border-left: 3px solid var(--accent); border-radius: 10px; padding: 8px 10px; margin-bottom: 8px; background: var(--panel-2); }
+.slot.done { border-left-color: #2f9e6b; }
+.slot-time { font-weight: 700; font-variant-numeric: tabular-nums; }
+.slot-class { font-weight: 600; }
+.slot-actions { display: flex; gap: 6px; margin-top: 8px; align-items: center; flex-wrap: wrap; }
+@media (max-width: 860px) { .week { grid-template-columns: 1fr !important; } }
+
+.modal.appel { max-width: 780px; }
+.appel-body { flex: 1; min-height: 0; overflow: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+.appel-body .topic { display: flex; flex-direction: column; gap: 6px; font-size: 0.82rem; color: var(--text-dim); font-weight: 500; }
+.appel-bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.appel-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.appel-list > li { padding: 10px 12px; border-bottom: 1px solid var(--border); border-left: 4px solid transparent; }
+.appel-list > li:last-child { border-bottom: none; }
+.appel-list > li.st-present { border-left-color: #2f9e6b; }
+.appel-list > li.st-absent { border-left-color: #e5484d; }
+.appel-list > li.st-late { border-left-color: #d98324; }
+.appel-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.who-name { flex: 1; min-width: 140px; font-weight: 600; }
+.seg { display: inline-flex; gap: 0; }
+.seg button { border-radius: 0; margin-left: -1px; }
+.seg button:first-child { border-radius: 9px 0 0 9px; margin-left: 0; }
+.seg button:last-child { border-radius: 0 9px 9px 0; }
+.seg button.on.present { background: #2f9e6b; border-color: #2f9e6b; color: #fff; }
+.seg button.on.absent { background: #e5484d; border-color: #e5484d; color: #fff; }
+.seg button.on.late { background: #d98324; border-color: #d98324; color: #fff; }
+.appel-detail { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+.appel-detail input[type="text"] { flex: 1; min-width: 160px; }
+.appel-detail input[type="number"] { width: 70px; }
+label.inline { display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; }
+.remark { margin: 6px 0 0; }
+.remark-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+.remark-form select { width: auto; }
+.remark-form input[type="text"] { flex: 1; min-width: 180px; }
+
+.badge.att-absent { color: #e5484d; border-color: #e5484d; }
+.badge.att-late { color: #d98324; border-color: #d98324; }
+.badge.remark-encouragement { color: #2f9e6b; border-color: #2f9e6b; }
+.badge.remark-punishment, .badge.remark-behaviour { color: #e5484d; border-color: #e5484d; }
+.badge.remark-material, .badge.remark-homework { color: #d98324; border-color: #d98324; }
+
+.table-wrap { overflow-x: auto; }
+table.bilan { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+table.bilan th, table.bilan td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.92rem; }
+table.bilan tbody tr { cursor: pointer; }
+table.bilan tbody tr:hover, table.bilan tr.sel { background: var(--panel-2); }
+table.bilan .warn { color: #e5484d; font-weight: 700; }
+.student-detail { margin-top: 14px; }
+.student-detail h3 { margin: 0 0 6px; }
+.student-detail h4 { margin: 12px 0 6px; font-size: 0.9rem; color: var(--text-dim); }
+ul.plain { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 8px; }
+.card.stat { padding: 14px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.card.stat strong { font-size: 1.6rem; font-family: "Literata", Georgia, serif; }
