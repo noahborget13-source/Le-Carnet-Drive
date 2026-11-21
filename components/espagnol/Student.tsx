@@ -4,6 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ES_BUCKET,
   KIND_LABEL,
+  POST_SELECT,
+  postSortKey,
+  sessionLabel,
   MAX_SIZE,
   formatDateTime,
   getEs,
@@ -85,15 +88,14 @@ function Feed({ userId, classId }: { userId: string; classId: string }) {
   const load = useCallback(async () => {
     const p = await es
       .from("es_posts")
-      .select("*, es_post_files(es_files(*))")
-      .eq("class_id", classId)
-      .order("created_at", { ascending: false });
+      .select(POST_SELECT)
+      .eq("class_id", classId);
     if (p.error) {
       setError(p.error.message);
       setLoading(false);
       return;
     }
-    const list = (p.data ?? []) as Post[];
+    const list = ((p.data ?? []) as unknown as Post[]).sort((a, b) => postSortKey(b).localeCompare(postSortKey(a)));
     setPosts(list);
     const ids = list.filter((x) => x.kind === "assignment").map((x) => x.id);
     if (ids.length) {
@@ -182,12 +184,13 @@ function StudentPost({
         {post.kind === "todo" && (
           <span className={`badge status ${done ? "done" : "todo"}`}>{done ? "Fait ✓" : "À faire"}</span>
         )}
-        <span className="muted small date">{formatDateTime(post.created_at)}</span>
+        <span className="muted small date">{post.given ? `Cours du ${sessionLabel(post.given)}` : formatDateTime(post.created_at)}</span>
       </header>
       <h3>{post.title}</h3>
-      {post.due_at && (
+      {(post.due || post.due_at) && (
         <p className="due small">
-          📅 {post.kind === "todo" ? "À faire pour le" : "À rendre avant le"} {formatDateTime(post.due_at)}
+          📅 {post.kind === "todo" ? "À faire pour" : "À rendre pour"}{" "}
+          {post.due ? `le cours du ${sessionLabel(post.due)}` : `le ${formatDateTime(post.due_at!)}`}
         </p>
       )}
       {post.body && <p className="body">{post.body}</p>}

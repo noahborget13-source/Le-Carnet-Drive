@@ -3,9 +3,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   KIND_LABEL,
+  POST_SELECT,
+  ensureLessonSession,
+  lessonLabel,
+  lessonStartIso,
+  lessonsFor,
+  postSortKey,
+  sessionLabel,
+  type Lesson,
+  type Slot,
+  addDays,
   formatDateTime,
   getEs,
-  localToIso,
   postFiles,
   uploadToLibrary,
   type AppelTarget,
@@ -45,9 +54,8 @@ export default function TeacherClass({ userId, cls, profiles, onDeleted, onProfi
     const [p, m, k] = await Promise.all([
       es
         .from("es_posts")
-        .select("*, es_post_files(es_files(*))")
-        .eq("class_id", cls.id)
-        .order("created_at", { ascending: false }),
+        .select(POST_SELECT)
+        .eq("class_id", cls.id),
       es.from("es_members").select("student_id").eq("class_id", cls.id),
       es.from("es_student_codes").select("user_id,code"),
     ]);
@@ -55,7 +63,7 @@ export default function TeacherClass({ userId, cls, profiles, onDeleted, onProfi
     else if (m.error) setError(m.error.message);
     else if (k.error) setError(k.error.message);
     else {
-      const list = (p.data ?? []) as Post[];
+      const list = ((p.data ?? []) as unknown as Post[]).sort((a, b) => postSortKey(b).localeCompare(postSortKey(a)));
       setPosts(list);
       const todoIds = list.filter((x) => x.kind === "todo").map((x) => x.id);
       if (todoIds.length) {
@@ -164,13 +172,45 @@ function Composer({ userId, classId, onCreated }: { userId: string; classId: str
   const [kind, setKind] = useState<PostKind>("resource");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-  const [due, setDue] = useState("");
+  const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [givenKey, setGivenKey] = useState("");
+  const [dueKey, setDueKey] = useState("");
   const [published, setPublished] = useState(true);
   const [attached, setAttached] = useState<EsFile[]>([]);
   const [picking, setPicking] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Cours de la classe d'après l'emploi du temps : 3 semaines passées, 6 semaines à venir
+  useEffect(() => {
+    Promise.all([
+      es.from("es_slots").select("*").eq("class_id", classId),
+      es.from("es_settings").select("q1_monday").limit(1).maybeSingle(),
+    ]).then(([s, st]) => {
+      if (s.error) return setError(s.error.message);
+      const now = new Date();
+      const list = lessonsFor(
+        (s.data ?? []) as Slot[],
+        classId,
+        (st.data as { q1_monday: string } | null)?.q1_monday ?? null,
+        addDays(now, -21),
+        addDays(now, 42)
+      );
+      setLessons(list);
+      // par défaut : le cours du jour (ou le dernier cours passé), et le suivant pour l'échéance
+      const nowKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}T${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+      const past = list.filter((l) => l.key <= nowKey);
+      const given = past[past.length - 1] ?? list[0];
+      if (given) {
+        setGivenKey(given.key);
+        setDueKey(list.find((l) => l.key > given.key)?.key ?? "");
+      }
+    });
+  }, [es, classId]);
+
+  const hasDue = kind === "assignment" || kind === "todo";
+  const dueOptions = lessons.filter((l) => !givenKey || l.key > givenKey);
 
   async function addNew(list: FileList) {
     setError(null);
@@ -186,6 +226,14 @@ function Composer({ userId, classId, onCreated }: { userId: string; classId: str
     e.preventDefault();
     setError(null);
     setBusy("Publication…");
+    const given = lessons.find((l) => l.key === givenKey) ?? null;
+    const due = hasDue ? (lessons.find((l) => l.key === dueKey) ?? null) : null;
+    const sessionId = given ? await ensureLessonSession(classId, given) : null;
+    const dueSessionId = due ? await ensureLessonSession(classId, due) : null;
+    if ((given && !sessionId) || (due && !dueSessionId)) {
+      setBusy(null);
+      return setError("Impossible de rattacher la publication à ce cours.");
+    }
     const { data, error: pErr } = await es
       .from("es_posts")
       .insert({
@@ -193,7 +241,9 @@ function Composer({ userId, classId, onCreated }: { userId: string; classId: str
         kind,
         title: title.trim(),
         body: body.trim(),
-        due_at: kind === "assignment" || kind === "todo" ? localToIso(due) : null,
+        session_id: sessionId,
+        due_session_id: dueSessionId,
+        due_at: due ? lessonStartIso(due) : null,
         published,
       })
       .select("id")
@@ -210,7 +260,6 @@ function Composer({ userId, classId, onCreated }: { userId: string; classId: str
     }
     setTitle("");
     setBody("");
-    setDue("");
     setAttached([]);
     setBusy(null);
     onCreated();
@@ -228,13 +277,41 @@ function Composer({ userId, classId, onCreated }: { userId: string; classId: str
             <option value="announcement">Annonce</option>
           </select>
         </label>
-        {(kind === "assignment" || kind === "todo") && (
+      </div>
+      <div className="row">
+        <label>
+          {hasDue ? "Donné au cours du" : "Cours concerné"}
+          <select
+            value={givenKey}
+            onChange={(e) => {
+              setGivenKey(e.target.value);
+              // l'échéance doit rester après le cours où le travail est donné
+              if (dueKey && dueKey <= e.target.value) setDueKey(lessons.find((l) => l.key > e.target.value)?.key ?? "");
+            }}
+          >
+            <option value="">— Hors emploi du temps —</option>
+            {lessons.map((l) => (
+              <option key={l.key} value={l.key}>{lessonLabel(l)}</option>
+            ))}
+          </select>
+        </label>
+        {hasDue && (
           <label>
-            {kind === "todo" ? "Pour le" : "À rendre avant le"}
-            <input type="datetime-local" value={due} onChange={(e) => setDue(e.target.value)} />
+            {kind === "todo" ? "À faire pour le cours du" : "À rendre pour le cours du"}
+            <select value={dueKey} onChange={(e) => setDueKey(e.target.value)}>
+              <option value="">— Pas de date —</option>
+              {dueOptions.map((l) => (
+                <option key={l.key} value={l.key}>{lessonLabel(l)}</option>
+              ))}
+            </select>
           </label>
         )}
       </div>
+      {lessons.length === 0 && (
+        <p className="muted small">
+          Ajoute d&apos;abord les créneaux de cette classe dans « Emploi du temps » pour rattacher tes publications à un cours précis.
+        </p>
+      )}
       <label>
         Titre
         <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex. : Le passé composé — fiche d'exercices" />
@@ -318,12 +395,13 @@ function PostCard({
       <header>
         <span className={`badge ${post.kind}`}>{KIND_LABEL[post.kind]}</span>
         {!post.published && <span className="badge draft">Brouillon (masqué)</span>}
-        <span className="muted small date">{formatDateTime(post.created_at)}</span>
+        <span className="muted small date">{post.given ? `Cours du ${sessionLabel(post.given)}` : formatDateTime(post.created_at)}</span>
       </header>
       <h3>{post.title}</h3>
-      {post.due_at && (
+      {(post.due || post.due_at) && (
         <p className="due small">
-          📅 {post.kind === "todo" ? "À faire pour le" : "À rendre avant le"} {formatDateTime(post.due_at)}
+          📅 {post.kind === "todo" ? "À faire pour" : "À rendre pour"}{" "}
+          {post.due ? `le cours du ${sessionLabel(post.due)}` : `le ${formatDateTime(post.due_at!)}`}
         </p>
       )}
       {post.body && <p className="body">{post.body}</p>}

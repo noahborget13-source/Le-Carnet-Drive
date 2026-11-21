@@ -80,8 +80,18 @@ export type Post = {
   due_at: string | null;
   published: boolean;
   created_at: string;
+  session_id: string | null; // cours où la publication est donnée
+  due_session_id: string | null; // cours pour lequel le travail est attendu
+  given: SessionLite | null;
+  due: SessionLite | null;
   es_post_files: { es_files: EsFile | null }[];
 };
+
+export type SessionLite = { date: string; start_time: string; end_time: string; room: string };
+
+// Sélection d'une publication avec ses fichiers et ses deux cours
+export const POST_SELECT =
+  "*, es_post_files(es_files(*)), given:es_sessions!session_id(date,start_time,end_time,room), due:es_sessions!due_session_id(date,start_time,end_time,room)";
 
 export type Submission = {
   id: string;
@@ -328,3 +338,57 @@ export type AppelTarget = {
 };
 
 export const appelKey = (t: { cls: { id: string }; date: string; start: string }) => `${t.cls.id}|${t.date}|${t.start}`;
+
+// ───────── Cours (créneau + date) pour rattacher les publications ─────────
+
+export type Lesson = { key: string; date: string; start: string; end: string; room: string; slotId: string };
+
+// Les cours d'une classe entre deux dates, d'après l'emploi du temps (semaines Q1 / Q2 comprises)
+export function lessonsFor(slots: Slot[], classId: string, q1Monday: string | null, from: Date, to: Date): Lesson[] {
+  const out: Lesson[] = [];
+  for (let d = new Date(from.getFullYear(), from.getMonth(), from.getDate()); d <= to; d = addDays(d, 1)) {
+    const wd = ((d.getDay() + 6) % 7) + 1;
+    const kind = weekKindOf(mondayOf(d), q1Monday);
+    for (const s of slots) {
+      if (s.class_id !== classId || s.weekday !== wd || !(s.week === "all" || s.week === kind)) continue;
+      const date = toYmd(d);
+      out.push({ key: `${date}T${hhmm(s.start_time)}`, date, start: hhmm(s.start_time), end: hhmm(s.end_time), room: s.room, slotId: s.id });
+    }
+  }
+  return out.sort((a, b) => a.key.localeCompare(b.key));
+}
+
+export function lessonLabel(l: { date: string; start: string; end?: string; room?: string }): string {
+  return `${formatShortDay(l.date)} · ${l.start}${l.end ? `–${l.end}` : ""}${l.room ? ` · salle ${l.room}` : ""}`;
+}
+
+export function sessionLabel(s: SessionLite): string {
+  return lessonLabel({ date: s.date, start: hhmm(s.start_time), end: hhmm(s.end_time), room: s.room });
+}
+
+// Date + heure de début d'un cours → ISO (heure locale)
+export function lessonStartIso(l: { date: string; start: string }): string {
+  return new Date(`${l.date}T${l.start}:00`).toISOString();
+}
+
+// Retrouve (ou crée) l'enregistrement du cours, utilisé aussi pour l'appel
+export async function ensureLessonSession(classId: string, l: Lesson): Promise<string | null> {
+  const es = getEs();
+  const find = () =>
+    es.from("es_sessions").select("id").eq("class_id", classId).eq("date", l.date).eq("start_time", `${l.start}:00`).maybeSingle();
+  const found = await find();
+  if (found.data) return (found.data as { id: string }).id;
+  const ins = await es
+    .from("es_sessions")
+    .insert({ class_id: classId, date: l.date, start_time: l.start, end_time: l.end, room: l.room, slot_id: l.slotId })
+    .select("id")
+    .single();
+  if (ins.data) return (ins.data as { id: string }).id;
+  const again = await find();
+  return (again.data as { id: string } | null)?.id ?? null;
+}
+
+// Clé de tri d'une publication : le cours où elle est donnée, sinon sa date de création
+export function postSortKey(p: Post): string {
+  return p.given ? `${p.given.date}T${hhmm(p.given.start_time)}` : p.created_at;
+}
