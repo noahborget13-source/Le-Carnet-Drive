@@ -158,3 +158,41 @@ export async function uploadToLibrary(
   onProgress?.(null);
   return { created, errors };
 }
+
+// ───────── Codes élèves ─────────
+
+// Un code élève = 8 caractères (sans I, O, 0, 1) ; affiché « XXXX-XXXX »
+export function normalizeCode(input: string): string {
+  return input.toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+export function formatCode(code: string): string {
+  return code.length === 8 ? `${code.slice(0, 4)}-${code.slice(4)}` : code;
+}
+
+// E-mail technique associé à un code (jamais affiché, aucun mail n'est envoyé)
+export function studentEmail(code: string): string {
+  return `${code.toLowerCase()}@eleve.local`;
+}
+
+export type CreatedStudent = { id: string; full_name: string; code: string };
+
+// Appelle la fonction Edge « es-students » (réservée au prof)
+export async function callStudents<T>(body: Record<string, unknown>): Promise<{ data: T | null; error: string | null }> {
+  const { data, error } = await getEs().functions.invoke("es-students", { body });
+  if (error) {
+    let msg = error.message;
+    const ctx = (error as { context?: Response }).context;
+    if (ctx && typeof ctx.json === "function") {
+      try {
+        const j = await ctx.json();
+        if (j && typeof j.error === "string") msg = j.error;
+      } catch {
+        // on garde le message par défaut
+      }
+    }
+    return { data: null, error: msg };
+  }
+  if (data && typeof data.error === "string") return { data: null, error: data.error };
+  return { data: data as T, error: null };
+}

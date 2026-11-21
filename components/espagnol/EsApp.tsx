@@ -59,7 +59,7 @@ export default function EsApp() {
           {profile && <span className={`badge role ${profile.role}`}>{profile.role === "teacher" ? "Professeur" : "Élève"}</span>}
         </div>
         <div className="who">
-          <a href="/">← Drive</a>
+          {profile?.role === "teacher" && <a href="/">← Drive</a>}
           <span className="muted">{profile?.full_name || session.user.email}</span>
           <button onClick={() => getEs().auth.signOut()}>Déconnexion</button>
         </div>
@@ -70,7 +70,7 @@ export default function EsApp() {
       ) : profile.role === "teacher" ? (
         <Teacher userId={profile.id} />
       ) : (
-        <Student userId={profile.id} />
+        <Student userId={profile.id} name={profile.full_name} />
       )}
     </main>
   );

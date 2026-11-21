@@ -17,37 +17,43 @@ import {
 } from "@/lib/espagnol";
 import Attachments from "./Attachments";
 import FilePicker from "./FilePicker";
+import StudentsPanel from "./StudentsPanel";
 
 type Props = {
   userId: string;
   cls: ClassRow;
   profiles: Map<string, Profile>;
   onDeleted: () => void;
+  onProfilesChanged: () => void;
 };
 
-export default function TeacherClass({ userId, cls, profiles, onDeleted }: Props) {
+export default function TeacherClass({ userId, cls, profiles, onDeleted, onProfilesChanged }: Props) {
   const es = getEs();
   const [posts, setPosts] = useState<Post[]>([]);
   const [subs, setSubs] = useState<Submission[]>([]);
   const [members, setMembers] = useState<string[]>([]);
+  const [codes, setCodes] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<"posts" | "students">("posts");
 
   const load = useCallback(async () => {
-    const [p, m] = await Promise.all([
+    const [p, m, k] = await Promise.all([
       es
         .from("es_posts")
         .select("*, es_post_files(es_files(*))")
         .eq("class_id", cls.id)
         .order("created_at", { ascending: false }),
       es.from("es_members").select("student_id").eq("class_id", cls.id),
+      es.from("es_student_codes").select("user_id,code"),
     ]);
     if (p.error) setError(p.error.message);
     else if (m.error) setError(m.error.message);
+    else if (k.error) setError(k.error.message);
     else {
       const list = (p.data ?? []) as Post[];
       setPosts(list);
+      setCodes(new Map(((k.data ?? []) as { user_id: string; code: string }[]).map((x): [string, string] => [x.user_id, x.code])));
       setMembers((m.data ?? []).map((x: { student_id: string }) => x.student_id));
       const ids = list.filter((x) => x.kind === "assignment").map((x) => x.id);
       if (ids.length) {
@@ -65,6 +71,11 @@ export default function TeacherClass({ userId, cls, profiles, onDeleted }: Props
     load();
   }, [load]);
 
+  async function onStudentsChanged() {
+    onProfilesChanged();
+    await load();
+  }
+
   async function deleteClass() {
     if (
       !window.confirm(
@@ -77,23 +88,11 @@ export default function TeacherClass({ userId, cls, profiles, onDeleted }: Props
     else onDeleted();
   }
 
-  async function removeMember(id: string) {
-    const name = profiles.get(id)?.full_name || "cet élève";
-    if (!window.confirm(`Retirer ${name} de la classe ?`)) return;
-    const { error } = await es.from("es_members").delete().eq("class_id", cls.id).eq("student_id", id);
-    if (error) setError(error.message);
-    else await load();
-  }
-
   return (
     <div className="class-view">
       <div className="class-head">
         <div>
           <h2>{cls.name}</h2>
-          <p className="muted small">
-            Code à donner aux élèves : <strong className="code">{cls.code}</strong>{" "}
-            <button className="link" onClick={() => navigator.clipboard?.writeText(cls.code)}>Copier</button>
-          </p>
         </div>
         <button className="danger" onClick={deleteClass}>Supprimer la classe</button>
       </div>
@@ -108,21 +107,14 @@ export default function TeacherClass({ userId, cls, profiles, onDeleted }: Props
       {error && <p className="error">{error}</p>}
 
       {tab === "students" ? (
-        members.length === 0 ? (
-          <p className="muted empty">Aucun élève pour l&apos;instant. Donne-leur le code {cls.code}.</p>
-        ) : (
-          <ul className="list simple">
-            {members.map((id) => (
-              <li key={id}>
-                <span className="text">{profiles.get(id)?.full_name || "(sans nom)"}</span>
-                <span className="muted small">{profiles.get(id)?.email}</span>
-                <span className="actions">
-                  <button className="danger" onClick={() => removeMember(id)}>Retirer</button>
-                </span>
-              </li>
-            ))}
-          </ul>
-        )
+        <StudentsPanel
+          classId={cls.id}
+          className={cls.name}
+          members={members}
+          profiles={profiles}
+          codes={codes}
+          onChanged={onStudentsChanged}
+        />
       ) : (
         <>
           <Composer userId={userId} classId={cls.id} onCreated={load} />

@@ -44,8 +44,9 @@ Dans *Authentication → URL Configuration*, ajouter `https://le-carnet-drive.ve
 Un onglet « 🇪🇸 Cours d'espagnol » du Drive : espace **professeur** et espace **élèves**, avec des comptes **séparés** de Le Carnet.
 
 - **Prof** : bibliothèque de fichiers (dossiers, aperçu, téléchargement), classes avec code d'invitation, publications (ressources, devoirs avec date limite, annonces) avec fichiers joints, brouillon/publié, rendus des élèves, notes et commentaires.
-- **Élève** : crée un compte, rejoint une classe avec le code, voit les contenus publiés, rend ses devoirs (texte + fichiers) et lit sa note.
+- **Élève** : pas de compte à créer ni d'email : il va sur `/espagnol`, tape le code que tu lui as donné (format `XXXX-XXXX`) et arrive directement dans sa classe, son nom déjà affiché. Il voit les contenus publiés, rend ses devoirs (texte + fichiers) et lit sa note.
 - Données : projet Supabase « drive » (migration dans `supabase/espagnol/`), bucket privé `espagnol`, sécurité RLS (un élève ne voit que sa classe et ses propres rendus).
+- Les comptes élèves sont créés par le prof (onglet *Élèves* d'une classe : un nom par ligne) via la fonction Edge `es-students` (`supabase/functions/es-students/`). Chaque élève a un code ; un e-mail technique `{code}@eleve.local` et le mot de passe égal au code servent en interne. Le prof peut imprimer les codes, en régénérer un ou supprimer un compte.
 - Le rôle **prof** est donné automatiquement aux adresses listées dans la table `es_teachers` ; toutes les autres inscriptions sont des élèves. Pour ajouter un prof : `insert into public.es_teachers (email) values ('prof@exemple.fr');` **avant** qu'il crée son compte.
 
 Variables d'environnement : `NEXT_PUBLIC_ESPAGNOL_SUPABASE_URL` et `NEXT_PUBLIC_ESPAGNOL_SUPABASE_KEY`.

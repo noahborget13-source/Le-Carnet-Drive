@@ -280,3 +280,8 @@ button.mini { padding: 3px 8px; border-radius: 999px; font-size: 0.8rem; }
   .class-picker .join { margin-left: 0; width: 100%; }
   .class-picker .join input { flex: 1; width: auto; }
 }
+
+.code-input { text-align: center; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.6rem !important; letter-spacing: 0.18em; text-transform: uppercase; padding: 14px 12px !important; }
+.hello { margin: 0 0 14px; font-size: 1.4rem; }
+.list.students li { grid-template-columns: minmax(0, 1fr) auto auto; }
+.list.students .code { font-size: 1rem; }

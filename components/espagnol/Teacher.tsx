@@ -78,6 +78,7 @@ export default function Teacher({ userId }: { userId: string }) {
               userId={userId}
               cls={current}
               profiles={profiles}
+              onProfilesChanged={load}
               onDeleted={() => {
                 setSelected(null);
                 load();

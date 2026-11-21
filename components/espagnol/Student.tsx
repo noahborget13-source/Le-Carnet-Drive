@@ -15,13 +15,11 @@ import {
 import { safeName } from "@/lib/files";
 import Attachments from "./Attachments";
 
-export default function Student({ userId }: { userId: string }) {
+export default function Student({ userId, name }: { userId: string; name: string }) {
   const es = getEs();
   const [classes, setClasses] = useState<ClassRow[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [code, setCode] = useState("");
-  const [joining, setJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -39,47 +37,27 @@ export default function Student({ userId }: { userId: string }) {
     load();
   }, [load]);
 
-  async function join(e: React.FormEvent) {
-    e.preventDefault();
-    setJoining(true);
-    setError(null);
-    const { data, error } = await es.rpc("es_join_class", { p_code: code });
-    setJoining(false);
-    if (error) return setError(error.message);
-    setCode("");
-    await load();
-    if (typeof data === "string") setSelected(data);
-  }
-
   if (loading) return <p className="muted">Chargement…</p>;
+
+  const first = name.trim().split(/\s+/)[0];
 
   return (
     <>
-      <div className="class-picker">
-        {classes.map((c) => (
-          <button key={c.id} className={c.id === selected ? "on" : ""} onClick={() => setSelected(c.id)}>
-            {c.name}
-          </button>
-        ))}
-        <form className="join" onSubmit={join}>
-          <input
-            type="text"
-            placeholder="Code de classe"
-            value={code}
-            maxLength={12}
-            onChange={(e) => setCode(e.target.value)}
-            aria-label="Code de classe"
-          />
-          <button className="primary" disabled={joining || !code.trim()}>Rejoindre</button>
-        </form>
-      </div>
+      <h2 className="hello">Hola{first ? `, ${first}` : ""} 👋</h2>
+      {classes.length > 1 && (
+        <div className="class-picker">
+          {classes.map((c) => (
+            <button key={c.id} className={c.id === selected ? "on" : ""} onClick={() => setSelected(c.id)}>
+              {c.name}
+            </button>
+          ))}
+        </div>
+      )}
       {error && <p className="error">{error}</p>}
       {selected ? (
         <Feed key={selected} userId={userId} classId={selected} />
       ) : (
-        <p className="muted empty">
-          Tu n&apos;as encore rejoint aucune classe. Saisis le code donné par ton professeur ci-dessus.
-        </p>
+        <p className="muted empty">Tu n&apos;as pas encore de classe. Demande à ton professeur.</p>
       )}
     </>
   );
