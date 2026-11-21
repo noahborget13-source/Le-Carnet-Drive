@@ -8,6 +8,7 @@ import {
   localToIso,
   postFiles,
   uploadToLibrary,
+  type AppelTarget,
   type ClassRow,
   type EsFile,
   type PostKind,
@@ -26,9 +27,10 @@ type Props = {
   profiles: Map<string, Profile>;
   onDeleted: () => void;
   onProfilesChanged: () => void;
+  onOpenAppel: (t: AppelTarget) => void;
 };
 
-export default function TeacherClass({ userId, cls, profiles, onDeleted, onProfilesChanged }: Props) {
+export default function TeacherClass({ userId, cls, profiles, onDeleted, onProfilesChanged, onOpenAppel }: Props) {
   const es = getEs();
   const [posts, setPosts] = useState<Post[]>([]);
   const [subs, setSubs] = useState<Submission[]>([]);
@@ -116,7 +118,7 @@ export default function TeacherClass({ userId, cls, profiles, onDeleted, onProfi
       {error && <p className="error">{error}</p>}
 
       {tab === "life" ? (
-        <ClassLife cls={cls} members={members} profiles={profiles} />
+        <ClassLife cls={cls} members={members} profiles={profiles} onOpenAppel={onOpenAppel} />
       ) : tab === "students" ? (
         <StudentsPanel
           classId={cls.id}

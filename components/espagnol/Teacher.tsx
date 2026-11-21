@@ -1,19 +1,21 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { getEs, type ClassRow, type Profile } from "@/lib/espagnol";
+import { getEs, type AppelTarget, type ClassRow, type Profile } from "@/lib/espagnol";
 import Library from "./Library";
+import AppelPage from "./AppelPage";
 import Timetable from "./Timetable";
 import TeacherClass from "./TeacherClass";
 
 export default function Teacher({ userId }: { userId: string }) {
   const es = getEs();
-  const [tab, setTab] = useState<"classes" | "timetable" | "library">("classes");
+  const [tab, setTab] = useState<"timetable" | "appel" | "classes" | "library">("timetable");
   const [classes, setClasses] = useState<ClassRow[]>([]);
   const [profiles, setProfiles] = useState<Map<string, Profile>>(new Map());
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [appel, setAppel] = useState<AppelTarget | null>(null);
 
   const load = useCallback(async () => {
     const [c, p] = await Promise.all([
@@ -51,50 +53,68 @@ export default function Teacher({ userId }: { userId: string }) {
 
   const current = classes.find((c) => c.id === selected) ?? null;
 
-  return (
-    <>
-      <div className="tabs">
-        <button className={tab === "classes" ? "on" : ""} onClick={() => setTab("classes")}>👩‍🏫 Classes</button>
-        <button className={tab === "timetable" ? "on" : ""} onClick={() => setTab("timetable")}>🗓 Emploi du temps</button>
-        <button className={tab === "library" ? "on" : ""} onClick={() => setTab("library")}>📚 Bibliothèque</button>
-      </div>
-      {error && <p className="error">{error}</p>}
+  function openAppel(t: AppelTarget) {
+    setAppel(t);
+    setTab("appel");
+  }
 
-      {tab === "library" ? (
-        <Library userId={userId} />
-      ) : tab === "timetable" ? (
-        loading ? <p className="muted">Chargement…</p> : <Timetable classes={classes} profiles={profiles} />
-      ) : loading ? (
-        <p className="muted">Chargement…</p>
-      ) : (
-        <>
-          <div className="class-picker">
-            {classes.map((c) => (
-              <button key={c.id} className={c.id === selected ? "on" : ""} onClick={() => setSelected(c.id)}>
-                {c.name}
-              </button>
-            ))}
-            <button className="primary" onClick={newClass}>+ Nouvelle classe</button>
-          </div>
-          {current ? (
-            <TeacherClass
-              key={current.id}
-              userId={userId}
-              cls={current}
-              profiles={profiles}
-              onProfilesChanged={load}
-              onDeleted={() => {
-                setSelected(null);
-                load();
-              }}
-            />
-          ) : (
-            <p className="muted empty">
-              Crée ta première classe : tu obtiendras un code à donner à tes élèves pour qu&apos;ils la rejoignent.
-            </p>
-          )}
-        </>
-      )}
-    </>
+  const nav: { id: typeof tab; icon: string; label: string }[] = [
+    { id: "timetable", icon: "🗓", label: "Emploi du temps" },
+    { id: "appel", icon: "✅", label: "Appel" },
+    { id: "classes", icon: "📒", label: "Cahier de textes" },
+    { id: "library", icon: "📚", label: "Ressources" },
+  ];
+
+  return (
+    <div className="shell">
+      <nav className="side" aria-label="Menu professeur">
+        {nav.map((n) => (
+          <button key={n.id} className={tab === n.id ? "on" : ""} onClick={() => setTab(n.id)}>
+            <span aria-hidden="true">{n.icon}</span> {n.label}
+          </button>
+        ))}
+      </nav>
+      <div className="content">
+        {error && <p className="error">{error}</p>}
+        {loading && tab !== "library" ? (
+          <p className="muted">Chargement…</p>
+        ) : tab === "library" ? (
+          <Library userId={userId} />
+        ) : tab === "timetable" ? (
+          <Timetable classes={classes} userId={userId} onSelect={openAppel} />
+        ) : tab === "appel" ? (
+          <AppelPage classes={classes} profiles={profiles} userId={userId} target={appel} onTarget={setAppel} />
+        ) : (
+          <>
+            <div className="class-picker">
+              {classes.map((c) => (
+                <button key={c.id} className={c.id === selected ? "on" : ""} onClick={() => setSelected(c.id)}>
+                  {c.name}
+                </button>
+              ))}
+              <button className="primary" onClick={newClass}>+ Nouvelle classe</button>
+            </div>
+            {current ? (
+              <TeacherClass
+                key={current.id}
+                userId={userId}
+                cls={current}
+                profiles={profiles}
+                onProfilesChanged={load}
+                onOpenAppel={openAppel}
+                onDeleted={() => {
+                  setSelected(null);
+                  load();
+                }}
+              />
+            ) : (
+              <p className="muted empty">
+                Crée ta première classe, puis ajoute tes élèves : chacun reçoit un code de connexion.
+              </p>
+            )}
+          </>
+        )}
+      </div>
+    </div>
   );
 }

@@ -8,6 +8,7 @@ import {
   formatShortDay,
   getEs,
   hhmm,
+  type AppelTarget,
   type Attendance,
   type ClassRow,
   type Profile,
@@ -15,17 +16,19 @@ import {
   type RemarkKind,
   type Session,
 } from "@/lib/espagnol";
-import Appel, { RemarkForm, type AppelTarget } from "./Appel";
+import { RemarkForm } from "./Appel";
 
 // Vie scolaire d'une classe : bilan par élève (absences, retards, observations) et historique des appels
 export default function ClassLife({
   cls,
   members,
   profiles,
+  onOpenAppel,
 }: {
   cls: ClassRow;
   members: string[];
   profiles: Map<string, Profile>;
+  onOpenAppel: (t: AppelTarget) => void;
 }) {
   const es = getEs();
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -33,7 +36,6 @@ export default function ClassLife({
   const [remarks, setRemarks] = useState<Remark[]>([]);
   const [part, setPart] = useState<{ session_id: string; student_id: string; rating: number }[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
-  const [appel, setAppel] = useState<AppelTarget | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -210,7 +212,7 @@ export default function ClassLife({
                 <span className="actions">
                   <button
                     onClick={() =>
-                      setAppel({
+                      onOpenAppel({
                         cls,
                         date: s.date,
                         start: hhmm(s.start_time),
@@ -229,7 +231,6 @@ export default function ClassLife({
         </ul>
       )}
 
-      {appel && <Appel target={appel} profiles={profiles} onClose={() => setAppel(null)} onSaved={load} />}
     </div>
   );
 }

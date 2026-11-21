@@ -200,6 +200,9 @@ export async function callStudents<T>(body: Record<string, unknown>): Promise<{ 
 
 // ───────── Emploi du temps, appel, observations ─────────
 
+// Créneau valable toutes les semaines, ou seulement les semaines Q1 / Q2 (alternance)
+export type WeekKind = "all" | "q1" | "q2";
+
 export type Slot = {
   id: string;
   class_id: string;
@@ -208,6 +211,7 @@ export type Slot = {
   end_time: string;
   room: string;
   subject: string;
+  week: WeekKind;
 };
 
 export type Session = {
@@ -219,6 +223,7 @@ export type Session = {
   end_time: string;
   room: string;
   topic: string;
+  validated_at: string | null;
 };
 
 export type AttStatus = "present" | "absent" | "late";
@@ -236,6 +241,9 @@ export type Attendance = {
   late_minutes: number | null;
   excused: boolean;
   reason: string;
+  infirmary: boolean;
+  excluded: boolean;
+  exempt: boolean;
 };
 
 export type RemarkKind = "observation" | "encouragement" | "material" | "homework" | "behaviour" | "punishment";
@@ -296,3 +304,27 @@ export function formatDay(ymd: string): string {
 export function formatShortDay(ymd: string): string {
   return fromYmd(ymd).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
 }
+
+// Semaine Q1 ou Q2 : on part d'un lundi connu comme Q1, puis ça alterne chaque semaine
+export function weekKindOf(monday: Date, q1Monday: string | null): "q1" | "q2" {
+  if (!q1Monday) return "q1";
+  const a = Date.UTC(monday.getFullYear(), monday.getMonth(), monday.getDate());
+  const ref = fromYmd(q1Monday);
+  const b = Date.UTC(ref.getFullYear(), ref.getMonth(), ref.getDate());
+  const weeks = Math.round((a - b) / (7 * 24 * 3600 * 1000));
+  return Math.abs(weeks) % 2 === 0 ? "q1" : "q2";
+}
+
+export const WEEK_LABEL: Record<WeekKind, string> = { all: "Toutes les semaines", q1: "Q1", q2: "Q2" };
+
+// Un cours choisi pour faire l'appel (créneau + date)
+export type AppelTarget = {
+  cls: ClassRow;
+  date: string; // « AAAA-MM-JJ »
+  start: string; // « HH:MM »
+  end: string;
+  room: string;
+  slotId: string | null;
+};
+
+export const appelKey = (t: { cls: { id: string }; date: string; start: string }) => `${t.cls.id}|${t.date}|${t.start}`;

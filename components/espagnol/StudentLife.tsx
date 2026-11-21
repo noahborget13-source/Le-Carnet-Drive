@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import {
-  DAYS,
   REMARK_LABEL,
   STATUS_LABEL,
   formatDateTime,
@@ -12,56 +11,12 @@ import {
   type Attendance,
   type ClassRow,
   type Remark,
-  type Slot,
 } from "@/lib/espagnol";
-import { slotTime } from "./Appel";
+import Timetable from "./Timetable";
 
-// Emploi du temps de la classe (lecture seule pour l'élève)
+// Emploi du temps de la classe (lecture seule pour l'élève, avec semaines Q1 / Q2)
 export function StudentTimetable({ classes }: { classes: ClassRow[] }) {
-  const [slots, setSlots] = useState<Slot[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    getEs()
-      .from("es_slots")
-      .select("*")
-      .order("start_time")
-      .then(({ data, error }) => {
-        if (error) setError(error.message);
-        else setSlots((data ?? []) as Slot[]);
-        setLoading(false);
-      });
-  }, []);
-
-  if (loading) return <p className="muted">Chargement…</p>;
-  if (error) return <p className="error">{error}</p>;
-  if (slots.length === 0) return <p className="muted empty">Pas encore d&apos;emploi du temps.</p>;
-
-  const className = (id: string) => classes.find((c) => c.id === id)?.name ?? "";
-  const days = [1, 2, 3, 4, 5, 6, 7].filter((d) => slots.some((s) => s.weekday === d));
-
-  return (
-    <div className="week" style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}>
-      {days.map((wd) => (
-        <div key={wd} className="day">
-          <h3>{DAYS[wd - 1]}</h3>
-          {slots
-            .filter((s) => s.weekday === wd)
-            .map((s) => (
-              <div key={s.id} className="slot">
-                <div className="slot-time">{slotTime(s)}</div>
-                <div className="slot-class">{s.subject}</div>
-                <div className="muted small">
-                  {s.room ? `Salle ${s.room}` : ""}
-                  {classes.length > 1 ? ` · ${className(s.class_id)}` : ""}
-                </div>
-              </div>
-            ))}
-        </div>
-      ))}
-    </div>
-  );
+  return <Timetable readOnly classes={classes} />;
 }
 
 type AttRow = Attendance & { es_sessions: { date: string; start_time: string; end_time: string } | null };
@@ -76,7 +31,10 @@ export function StudentLife() {
   useEffect(() => {
     const es = getEs();
     Promise.all([
-      es.from("es_attendance").select("*, es_sessions(date,start_time,end_time)").neq("status", "present"),
+      es
+        .from("es_attendance")
+        .select("*, es_sessions(date,start_time,end_time)")
+        .or("status.neq.present,infirmary.eq.true,excluded.eq.true,exempt.eq.true"),
       es.from("es_remarks").select("*").order("created_at", { ascending: false }),
     ]).then(([a, r]) => {
       if (a.error || r.error) setError((a.error ?? r.error)!.message);
@@ -113,14 +71,19 @@ export function StudentLife() {
           {att.map((a) => (
             <li key={a.session_id}>
               <span className="text">
-                <span className={`badge att-${a.status}`}>
-                  {STATUS_LABEL[a.status]}
-                  {a.status === "late" && a.late_minutes ? ` ${a.late_minutes} min` : ""}
-                </span>{" "}
+                {a.status !== "present" && (
+                  <span className={`badge att-${a.status}`}>
+                    {STATUS_LABEL[a.status]}
+                    {a.status === "late" && a.late_minutes ? ` ${a.late_minutes} min` : ""}
+                  </span>
+                )}{" "}
+                {a.infirmary && <span className="badge">Infirmerie</span>}{" "}
+                {a.excluded && <span className="badge att-absent">Exclu(e) du cours</span>}{" "}
+                {a.exempt && <span className="badge">Dispensé(e)</span>}{" "}
                 {a.es_sessions ? `${formatShortDay(a.es_sessions.date)} · ${hhmm(a.es_sessions.start_time)}` : ""}
                 {a.reason ? ` · ${a.reason}` : ""}
               </span>
-              <span className="muted small">{a.excused ? "Justifié" : "Non justifié"}</span>
+              <span className="muted small">{a.status === "present" ? "" : a.excused ? "Justifié" : "Non justifié"}</span>
             </li>
           ))}
         </ul>

@@ -3,46 +3,66 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   DAYS,
+  WEEK_LABEL,
   addDays,
+  appelKey,
   formatShortDay,
   getEs,
   hhmm,
   mondayOf,
   toYmd,
+  weekKindOf,
+  type AppelTarget,
   type ClassRow,
-  type Profile,
   type Session,
   type Slot,
+  type WeekKind,
 } from "@/lib/espagnol";
-import Appel, { slotTime, type AppelTarget } from "./Appel";
 
-// Emploi du temps de la prof : créneaux hebdomadaires avec classe et salle, accès direct à l'appel
-export default function Timetable({ classes, profiles }: { classes: ClassRow[]; profiles: Map<string, Profile> }) {
+const slotTime = (s: { start_time: string; end_time: string }) => `${hhmm(s.start_time)}–${hhmm(s.end_time)}`;
+
+type Props = {
+  classes: ClassRow[];
+  userId?: string; // prof : nécessaire pour régler les semaines Q1 / Q2
+  readOnly?: boolean; // élève : consultation seule
+  picker?: boolean; // version compacte pour choisir un cours (page d'appel)
+  selectedKey?: string | null;
+  onSelect?: (t: AppelTarget) => void;
+};
+
+// Emploi du temps : créneaux hebdomadaires (classe, salle), semaines Q1 / Q2, accès à l'appel
+export default function Timetable({ classes, userId, readOnly, picker, selectedKey, onSelect }: Props) {
   const es = getEs();
   const [week, setWeek] = useState<Date>(() => mondayOf(new Date()));
   const [slots, setSlots] = useState<Slot[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [q1Monday, setQ1Monday] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [appel, setAppel] = useState<AppelTarget | null>(null);
   const [adding, setAdding] = useState(false);
 
   const weekStart = toYmd(week);
   const weekEnd = toYmd(addDays(week, 6));
+  const kind = weekKindOf(week, q1Monday);
 
   const load = useCallback(async () => {
-    const [s, x] = await Promise.all([
+    const [s, st, x] = await Promise.all([
       es.from("es_slots").select("*").order("start_time"),
-      es.from("es_sessions").select("*").gte("date", weekStart).lte("date", weekEnd),
+      es.from("es_settings").select("q1_monday").limit(1).maybeSingle(),
+      readOnly
+        ? Promise.resolve({ data: [], error: null })
+        : es.from("es_sessions").select("*").gte("date", weekStart).lte("date", weekEnd),
     ]);
     if (s.error) setError(s.error.message);
+    else if (st.error) setError(st.error.message);
     else if (x.error) setError(x.error.message);
     else {
       setSlots((s.data ?? []) as Slot[]);
+      setQ1Monday((st.data as { q1_monday: string } | null)?.q1_monday ?? null);
       setSessions((x.data ?? []) as Session[]);
     }
     setLoading(false);
-  }, [es, weekStart, weekEnd]);
+  }, [es, weekStart, weekEnd, readOnly]);
 
   useEffect(() => {
     load();
@@ -50,8 +70,19 @@ export default function Timetable({ classes, profiles }: { classes: ClassRow[]; 
 
   const classOf = useMemo(() => new Map(classes.map((c): [string, ClassRow] => [c.id, c])), [classes]);
   const today = toYmd(new Date());
-  const lastDay = slots.some((s) => s.weekday >= 6) ? 7 : 5;
+  const lastDay = !picker && slots.some((s) => s.weekday >= 6) ? 6 : 5;
   const days = Array.from({ length: lastDay }, (_, i) => i + 1);
+
+  async function setThisWeekKind(k: "q1" | "q2") {
+    if (!userId) return;
+    // le lundi de référence « Q1 » : cette semaine si on veut Q1, sinon la semaine suivante
+    const anchor = k === "q1" ? weekStart : toYmd(addDays(week, 7));
+    const { error } = await es
+      .from("es_settings")
+      .upsert({ teacher_id: userId, q1_monday: anchor, updated_at: new Date().toISOString() }, { onConflict: "teacher_id" });
+    if (error) setError(error.message);
+    else setQ1Monday(anchor);
+  }
 
   async function removeSlot(s: Slot) {
     if (!window.confirm("Supprimer ce créneau de l'emploi du temps ? (les appels déjà faits sont conservés)")) return;
@@ -60,27 +91,38 @@ export default function Timetable({ classes, profiles }: { classes: ClassRow[]; 
     else await load();
   }
 
-  function openAppel(s: Slot, date: string) {
+  function targetOf(s: Slot, date: string): AppelTarget | null {
     const cls = classOf.get(s.class_id);
-    if (!cls) return;
-    setAppel({ cls, date, start: hhmm(s.start_time), end: hhmm(s.end_time), room: s.room, slotId: s.id });
+    if (!cls) return null;
+    return { cls, date, start: hhmm(s.start_time), end: hhmm(s.end_time), room: s.room, slotId: s.id };
   }
 
   return (
-    <section>
+    <section className={picker ? "tt picker" : "tt"}>
       <div className="week-nav">
         <button onClick={() => setWeek(addDays(week, -7))} aria-label="Semaine précédente">←</button>
         <strong>
-          Semaine du {formatShortDay(weekStart)} au {formatShortDay(toYmd(addDays(week, days.length - 1)))}
+          {picker ? "" : "Semaine du "}
+          {formatShortDay(weekStart)} → {formatShortDay(toYmd(addDays(week, days.length - 1)))}
         </strong>
         <button onClick={() => setWeek(addDays(week, 7))} aria-label="Semaine suivante">→</button>
         <button onClick={() => setWeek(mondayOf(new Date()))}>Aujourd&apos;hui</button>
+        <span className={`badge wk-${kind}`} title="Semaine Q1 / Q2">{kind.toUpperCase()}</span>
+        {userId && !readOnly && (
+          <label className="inline small">
+            Cette semaine est
+            <select value={kind} onChange={(e) => setThisWeekKind(e.target.value as "q1" | "q2")} aria-label="Cette semaine est Q1 ou Q2">
+              <option value="q1">Q1</option>
+              <option value="q2">Q2</option>
+            </select>
+          </label>
+        )}
         <span className="grow" />
-        <button onClick={() => setAdding(!adding)}>{adding ? "Fermer" : "+ Ajouter un créneau"}</button>
+        {!readOnly && !picker && <button onClick={() => setAdding(!adding)}>{adding ? "Fermer" : "+ Ajouter un créneau"}</button>}
       </div>
 
       {error && <p className="error">{error}</p>}
-      {adding && (
+      {adding && !readOnly && (
         <SlotForm
           classes={classes}
           onCreated={async () => {
@@ -89,17 +131,20 @@ export default function Timetable({ classes, profiles }: { classes: ClassRow[]; 
           }}
         />
       )}
-      {classes.length === 0 && (
+      {!readOnly && classes.length === 0 && (
         <p className="muted empty">Crée d&apos;abord une classe (onglet Classes) pour pouvoir remplir ton emploi du temps.</p>
       )}
 
       {loading ? (
         <p className="muted">Chargement…</p>
       ) : (
-        <div className="week" style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}>
+        <div
+          className="week"
+          style={picker ? undefined : { gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}
+        >
           {days.map((wd) => {
             const date = toYmd(addDays(week, wd - 1));
-            const daySlots = slots.filter((s) => s.weekday === wd);
+            const daySlots = slots.filter((s) => s.weekday === wd && (s.week === "all" || s.week === kind));
             return (
               <div key={wd} className={`day${date === today ? " today" : ""}`}>
                 <h3>
@@ -108,21 +153,48 @@ export default function Timetable({ classes, profiles }: { classes: ClassRow[]; 
                 {daySlots.length === 0 && <p className="muted small">—</p>}
                 {daySlots.map((s) => {
                   const cls = classOf.get(s.class_id);
-                  const done = sessions.some((x) => x.class_id === s.class_id && x.date === date && hhmm(x.start_time) === hhmm(s.start_time));
-                  return (
-                    <div key={s.id} className={`slot${done ? " done" : ""}`}>
-                      <div className="slot-time">{slotTime(s)}</div>
+                  const session = sessions.find(
+                    (x) => x.class_id === s.class_id && x.date === date && hhmm(x.start_time) === hhmm(s.start_time)
+                  );
+                  const done = !!session?.validated_at;
+                  const t = targetOf(s, date);
+                  const selected = !!t && selectedKey === appelKey(t);
+                  const body = (
+                    <>
+                      <div className="slot-time">
+                        {slotTime(s)}
+                        {s.week !== "all" && <span className={`badge wk-${s.week}`}>{s.week.toUpperCase()}</span>}
+                      </div>
                       <div className="slot-class">{cls?.name ?? "Classe"}</div>
                       <div className="muted small">
                         {s.subject}
                         {s.room ? ` · salle ${s.room}` : ""}
                       </div>
-                      <div className="slot-actions">
-                        <button className={done ? "" : "primary"} onClick={() => openAppel(s, date)}>
-                          {done ? "✓ Appel fait" : "Faire l'appel"}
-                        </button>
-                        <button className="mini danger" onClick={() => removeSlot(s)} aria-label="Supprimer le créneau">✕</button>
-                      </div>
+                    </>
+                  );
+                  if (picker) {
+                    return (
+                      <button
+                        key={s.id}
+                        className={`slot pick${selected ? " selected" : ""}${done ? " done" : ""}`}
+                        onClick={() => t && onSelect?.(t)}
+                      >
+                        {body}
+                        {done && <div className="small ok">✓ Appel fait</div>}
+                      </button>
+                    );
+                  }
+                  return (
+                    <div key={s.id} className={`slot${done ? " done" : ""}`}>
+                      {body}
+                      {!readOnly && (
+                        <div className="slot-actions">
+                          <button className={done ? "" : "primary"} onClick={() => t && onSelect?.(t)}>
+                            {done ? "✓ Appel fait" : session ? "Appel en cours" : "Faire l'appel"}
+                          </button>
+                          <button className="mini danger" onClick={() => removeSlot(s)} aria-label="Supprimer le créneau">✕</button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -130,15 +202,6 @@ export default function Timetable({ classes, profiles }: { classes: ClassRow[]; 
             );
           })}
         </div>
-      )}
-
-      {appel && (
-        <Appel
-          target={appel}
-          profiles={profiles}
-          onClose={() => setAppel(null)}
-          onSaved={load}
-        />
       )}
     </section>
   );
@@ -151,6 +214,7 @@ function SlotForm({ classes, onCreated }: { classes: ClassRow[]; onCreated: () =
   const [end, setEnd] = useState("09:00");
   const [room, setRoom] = useState("");
   const [subject, setSubject] = useState("Espagnol");
+  const [week, setWeekKind] = useState<WeekKind>("all");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -166,6 +230,7 @@ function SlotForm({ classes, onCreated }: { classes: ClassRow[]; onCreated: () =
       end_time: end,
       room: room.trim(),
       subject: subject.trim() || "Espagnol",
+      week,
     });
     setBusy(false);
     if (error) setError(error.message);
@@ -209,10 +274,18 @@ function SlotForm({ classes, onCreated }: { classes: ClassRow[]; onCreated: () =
           Matière
           <input type="text" value={subject} onChange={(e) => setSubject(e.target.value)} />
         </label>
+        <label>
+          Semaines
+          <select value={week} onChange={(e) => setWeekKind(e.target.value as WeekKind)}>
+            {(Object.keys(WEEK_LABEL) as WeekKind[]).map((k) => (
+              <option key={k} value={k}>{WEEK_LABEL[k]}</option>
+            ))}
+          </select>
+        </label>
       </div>
       {error && <p className="error">{error}</p>}
       <div className="row end">
-        <span className="muted small">Ce créneau se répète toutes les semaines.</span>
+        <span className="muted small">Un créneau « Q1 » ou « Q2 » n&apos;apparaît qu&apos;une semaine sur deux.</span>
         <button className="primary" disabled={busy || !classId}>{busy ? "…" : "Ajouter au planning"}</button>
       </div>
     </form>
