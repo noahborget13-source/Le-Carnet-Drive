@@ -555,3 +555,32 @@ td.note-cell.lvl-3 { background: #dff3e6 !important; } td.note-cell.lvl-4 { back
 .bubble.them { align-self: flex-start; background: var(--panel-2); border: 1px solid var(--border); }
 .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #e5484d; margin-left: 6px; }
 .pn-list .pad { padding: 10px 12px; }
+
+/* ───────── Direction artistique « Pronote » : bandeau unique, onglets + sous-onglets, panneaux plats et denses ───────── */
+.pn { background: #e9edf1; font-size: 13px; font-family: "Segoe UI", "Open Sans", Arial, Helvetica, sans-serif; }
+.pn input, .pn select, .pn textarea, .pn button { font-size: 13px; font-family: inherit; }
+.pn-header { background: #0e4f8a; padding: 8px 16px 6px; }
+.pn-tabs { background: #0e4f8a; padding: 0 12px; gap: 2px; border-bottom: none; align-items: flex-end; }
+.pn-tabs button { flex-direction: row; gap: 7px; min-width: 0; padding: 8px 16px; border: none; border-radius: 6px 6px 0 0; color: #dbe9f6; font-weight: 600; font-size: 13px; }
+.pn-tabs button .ico { font-size: 1rem; }
+.pn-tabs button:hover { background: rgba(255, 255, 255, 0.14); color: #fff; }
+.pn-tabs button.on { background: #e9edf1; color: #0a3d6e; border-bottom: none; }
+.pn-sub { display: flex; gap: 0; padding: 0 12px; background: #e9edf1; border-bottom: 1px solid #c4ced9; overflow-x: auto; }
+.pn-sub button { border: none; border-radius: 0; background: transparent; color: #46586b; font-weight: 600; padding: 9px 16px 7px; border-bottom: 3px solid transparent; white-space: nowrap; }
+.pn-sub button:hover { background: #dde5ed; color: #0a3d6e; }
+.pn-sub button.on { color: #0a3d6e; border-bottom-color: #0a82dc; background: #fff; }
+.pn-page { padding: 14px 16px 50px; }
+.pn-title { font-size: 1.05rem; font-weight: 700; color: #fff; background: #3b6c97; margin: 0 0 12px; padding: 8px 14px; border-radius: 3px; letter-spacing: 0.01em; }
+.pn .card, .pn .widget, .pn .tg-wrap, .pn .pn-list { background: #fff; border: 1px solid #c4ced9; border-radius: 3px; box-shadow: none; }
+.pn .pn-list h3, .pn .appel-side h3 { background: #3b6c97; }
+.pn button { border-radius: 3px; }
+.pn button.primary { background: #0a82dc; border-color: #0a82dc; }
+.pn .tg-corner, .pn .tg-head { background: #3b6c97; }
+.pn .tg-head.today { background: #0a82dc; }
+.pn .appel-table thead th, .pn .notes-table thead th { background: #dde6ef; color: #1d3a56; }
+.pn .appel-table, .pn .table-wrap { border-radius: 0; }
+.pn .class-picker button { border-radius: 3px; }
+@media print {
+  .pn-header, .pn-tabs, .pn-sub, .notes-bar, .pn-title { display: none !important; }
+  .pn { background: #fff; }
+}

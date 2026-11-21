@@ -4,9 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { formatDateTime, getEs, type ClassRow, type Message, type Profile } from "@/lib/espagnol";
 
 // Communication : informations à toute la classe + messagerie avec chaque élève
-export default function Communication({ classes, profiles }: { classes: ClassRow[]; profiles: Map<string, Profile> }) {
+export default function Communication({ sub, classes, profiles }: { sub: "info" | "mail"; classes: ClassRow[]; profiles: Map<string, Profile> }) {
   const es = getEs();
-  const [sub, setSub] = useState<"info" | "mail">("info");
   const [classId, setClassId] = useState<string | null>(classes[0]?.id ?? null);
   const [members, setMembers] = useState<string[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -67,10 +66,6 @@ export default function Communication({ classes, profiles }: { classes: ClassRow
 
   return (
     <div>
-      <div className="pn-subtabs">
-        <button className={sub === "info" ? "on" : ""} onClick={() => setSub("info")}>Informations</button>
-        <button className={sub === "mail" ? "on" : ""} onClick={() => setSub("mail")}>Messagerie</button>
-      </div>
       <div className="class-picker">
         {classes.map((c) => (
           <button key={c.id} className={c.id === classId ? "on" : ""} onClick={() => setClassId(c.id)}>{c.name}</button>

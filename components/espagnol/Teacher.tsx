@@ -10,11 +10,24 @@ import Communication from "./Communication";
 import Competences from "./Competences";
 import Home from "./Home";
 import Notes from "./Notes";
+import Recap from "./Recap";
 import Library from "./Library";
 import TeacherClass from "./TeacherClass";
 import Timetable from "./Timetable";
 
 type Tab = "home" | "timetable" | "classes" | "notes" | "skills" | "reports" | "life" | "comm" | "library";
+
+const SUBS: Record<Tab, { id: string; label: string }[]> = {
+  home: [],
+  timetable: [{ id: "week", label: "Emploi du temps" }],
+  classes: [{ id: "saisie", label: "Saisie" }, { id: "recap", label: "Récapitulatif" }],
+  notes: [{ id: "saisie", label: "Saisie des notes" }],
+  skills: [{ id: "eval", label: "Évaluations" }],
+  reports: [{ id: "app", label: "Saisie des appréciations" }],
+  life: [{ id: "appel", label: "Appel" }, { id: "bilan", label: "Bilan et observations" }],
+  comm: [{ id: "info", label: "Information" }, { id: "mail", label: "Discussion" }],
+  library: [{ id: "res", label: "Ressources pédagogiques" }],
+};
 
 const NAV: { id: Tab; icon: string; label: string }[] = [
   { id: "home", icon: "🏠", label: "Accueil" },
@@ -25,7 +38,7 @@ const NAV: { id: Tab; icon: string; label: string }[] = [
   { id: "reports", icon: "📄", label: "Bulletins" },
   { id: "life", icon: "✅", label: "Vie scolaire" },
   { id: "comm", icon: "✉️", label: "Communication" },
-  { id: "library", icon: "📚", label: "Ressources pédagogiques" },
+  { id: "library", icon: "📚", label: "Outils pédagogiques" },
 ];
 
 // Espace professeur : en-tête, onglets, pages (présentation inspirée de Pronote)
@@ -40,7 +53,11 @@ export default function Teacher({ profile, onSignOut }: { profile: Profile; onSi
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [appel, setAppel] = useState<AppelTarget | null>(null);
-  const [lifeTab, setLifeTab] = useState<"appel" | "bilan">("appel");
+  const [subs, setSubs] = useState<Record<Tab, string>>({
+    home: "", timetable: "week", classes: "saisie", notes: "saisie", skills: "eval", reports: "app", life: "appel", comm: "info", library: "res",
+  });
+  const sub = subs[tab];
+  const setSub = (id: string) => setSubs((cur) => ({ ...cur, [tab]: id }));
 
   const load = useCallback(async () => {
     const [c, p, st] = await Promise.all([
@@ -80,7 +97,7 @@ export default function Teacher({ profile, onSignOut }: { profile: Profile; onSi
 
   function openAppel(t: AppelTarget) {
     setAppel(t);
-    setLifeTab("appel");
+    setSubs((cur) => ({ ...cur, life: "appel" }));
     setTab("life");
   }
 
@@ -114,6 +131,14 @@ export default function Teacher({ profile, onSignOut }: { profile: Profile; onSi
           </button>
         ))}
       </nav>
+
+      {SUBS[tab].length > 0 && (
+        <nav className="pn-sub" aria-label="Sous-menu">
+          {SUBS[tab].map((x) => (
+            <button key={x.id} className={sub === x.id ? "on" : ""} onClick={() => setSub(x.id)}>{x.label}</button>
+          ))}
+        </nav>
+      )}
 
       <main className="pn-page">
         {error && <p className="error">{error}</p>}
@@ -152,16 +177,12 @@ export default function Teacher({ profile, onSignOut }: { profile: Profile; onSi
         ) : tab === "comm" ? (
           <>
             <h1 className="pn-title">Communication</h1>
-            <Communication classes={classes} profiles={profiles} />
+            <Communication sub={sub === "mail" ? "mail" : "info"} classes={classes} profiles={profiles} />
           </>
         ) : tab === "life" ? (
           <>
-            <h1 className="pn-title">Vie scolaire</h1>
-            <div className="pn-subtabs">
-              <button className={lifeTab === "appel" ? "on" : ""} onClick={() => setLifeTab("appel")}>Appel</button>
-              <button className={lifeTab === "bilan" ? "on" : ""} onClick={() => setLifeTab("bilan")}>Bilan et observations</button>
-            </div>
-            {lifeTab === "appel" ? (
+            <h1 className="pn-title">Vie scolaire — {sub === "appel" ? "Appel" : "Bilan et observations"}</h1>
+            {sub === "appel" ? (
               <AppelPage classes={classes} profiles={profiles} userId={userId} target={appel} onTarget={setAppel} />
             ) : (
               <Bilan classes={classes} profiles={profiles} onOpenAppel={openAppel} />
@@ -169,7 +190,10 @@ export default function Teacher({ profile, onSignOut }: { profile: Profile; onSi
           </>
         ) : (
           <>
-            <h1 className="pn-title">Cahier de textes</h1>
+            <h1 className="pn-title">Cahier de textes — {sub === "recap" ? "Récapitulatif" : "Saisie"}</h1>
+            {sub === "recap" ? (
+              <Recap classes={classes} />
+            ) : (
             <div className="pn-split">
               <aside className="pn-list">
                 <h3>Mes classes</h3>
@@ -201,6 +225,7 @@ export default function Teacher({ profile, onSignOut }: { profile: Profile; onSi
                 )}
               </div>
             </div>
+            )}
           </>
         )}
       </main>
