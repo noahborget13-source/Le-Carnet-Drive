@@ -410,3 +410,26 @@ export function weightedAverage(items: { value: number | null; absent: boolean; 
 }
 
 export const fmtNote = (n: number | null) => (n === null ? "—" : n.toLocaleString("fr-FR", { maximumFractionDigits: 2 }));
+
+// ───────── Compétences, bulletins, messagerie ─────────
+export type Competency = { id: string; class_id: string; title: string };
+export type CompetencyMark = { competency_id: string; student_id: string; level: number };
+export const LEVELS: { n: number; label: string; short: string }[] = [
+  { n: 1, label: "Maîtrise insuffisante", short: "MI" },
+  { n: 2, label: "Maîtrise fragile", short: "MF" },
+  { n: 3, label: "Maîtrise satisfaisante", short: "MS" },
+  { n: 4, label: "Très bonne maîtrise", short: "TBM" },
+];
+export type Period = "T1" | "T2" | "T3";
+export const PERIODS: Period[] = ["T1", "T2", "T3"];
+export const PERIOD_LABEL: Record<Period, string> = { T1: "Trimestre 1", T2: "Trimestre 2", T3: "Trimestre 3" };
+export type Report = { class_id: string; student_id: string; period: Period; comment: string; published: boolean };
+export type Message = { id: string; class_id: string; student_id: string | null; sender_id: string; body: string; created_at: string };
+
+// Bornes approximatives des trimestres de l'année scolaire en cours
+export function periodRange(p: Period, today = new Date()): { from: string; to: string } {
+  const y = today.getMonth() >= 7 ? today.getFullYear() : today.getFullYear() - 1;
+  if (p === "T1") return { from: `${y}-08-15`, to: `${y}-11-30` };
+  if (p === "T2") return { from: `${y}-12-01`, to: `${y + 1}-02-28` };
+  return { from: `${y + 1}-03-01`, to: `${y + 1}-07-15` };
+}

@@ -5,20 +5,26 @@ import { getEs, mondayOf, weekKindOf, type AppelTarget, type ClassRow, type Prof
 import NotebookMark from "../NotebookMark";
 import AppelPage from "./AppelPage";
 import Bilan from "./Bilan";
+import Bulletins from "./Bulletins";
+import Communication from "./Communication";
+import Competences from "./Competences";
 import Home from "./Home";
 import Notes from "./Notes";
 import Library from "./Library";
 import TeacherClass from "./TeacherClass";
 import Timetable from "./Timetable";
 
-type Tab = "home" | "timetable" | "classes" | "notes" | "life" | "library";
+type Tab = "home" | "timetable" | "classes" | "notes" | "skills" | "reports" | "life" | "comm" | "library";
 
 const NAV: { id: Tab; icon: string; label: string }[] = [
   { id: "home", icon: "🏠", label: "Accueil" },
   { id: "timetable", icon: "🗓", label: "Emploi du temps" },
   { id: "classes", icon: "📒", label: "Cahier de textes" },
   { id: "notes", icon: "📊", label: "Notes" },
+  { id: "skills", icon: "🎯", label: "Compétences" },
+  { id: "reports", icon: "📄", label: "Bulletins" },
   { id: "life", icon: "✅", label: "Vie scolaire" },
+  { id: "comm", icon: "✉️", label: "Communication" },
   { id: "library", icon: "📚", label: "Ressources pédagogiques" },
 ];
 
@@ -60,7 +66,7 @@ export default function Teacher({ profile, onSignOut }: { profile: Profile; onSi
 
   // Rafraîchit les noms des élèves quand on revient sur une page qui les utilise
   useEffect(() => {
-    if (tab === "classes" || tab === "life" || tab === "notes" || tab === "home") load();
+    if (tab === "classes" || tab === "life" || tab === "notes" || tab === "skills" || tab === "reports" || tab === "comm" || tab === "home") load();
   }, [tab, load]);
 
   async function newClass() {
@@ -132,6 +138,21 @@ export default function Teacher({ profile, onSignOut }: { profile: Profile; onSi
           <>
             <h1 className="pn-title">Notes</h1>
             <Notes classes={classes} profiles={profiles} />
+          </>
+        ) : tab === "skills" ? (
+          <>
+            <h1 className="pn-title">Compétences</h1>
+            <Competences classes={classes} profiles={profiles} />
+          </>
+        ) : tab === "reports" ? (
+          <>
+            <h1 className="pn-title">Bulletins</h1>
+            <Bulletins classes={classes} profiles={profiles} />
+          </>
+        ) : tab === "comm" ? (
+          <>
+            <h1 className="pn-title">Communication</h1>
+            <Communication classes={classes} profiles={profiles} />
           </>
         ) : tab === "life" ? (
           <>

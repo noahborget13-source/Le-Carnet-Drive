@@ -17,7 +17,7 @@ import {
 } from "@/lib/espagnol";
 import { safeName } from "@/lib/files";
 import Attachments from "./Attachments";
-import { StudentLife, StudentNotes, StudentTimetable } from "./StudentLife";
+import { StudentBulletins, StudentCompetences, StudentLife, StudentMessages, StudentNotes, StudentTimetable } from "./StudentLife";
 
 export default function Student({ userId, name }: { userId: string; name: string }) {
   const es = getEs();
@@ -25,7 +25,7 @@ export default function Student({ userId, name }: { userId: string; name: string
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<"work" | "timetable" | "notes" | "life">("work");
+  const [tab, setTab] = useState<"work" | "timetable" | "notes" | "skills" | "reports" | "messages" | "life">("work");
 
   const load = useCallback(async () => {
     const { data, error } = await es.from("es_classes").select("id,name,code,created_at").order("created_at");
@@ -53,9 +53,12 @@ export default function Student({ userId, name }: { userId: string; name: string
         <button className={tab === "work" ? "on" : ""} onClick={() => setTab("work")}>📝 Travail</button>
         <button className={tab === "timetable" ? "on" : ""} onClick={() => setTab("timetable")}>🗓 Emploi du temps</button>
         <button className={tab === "notes" ? "on" : ""} onClick={() => setTab("notes")}>📊 Notes</button>
+        <button className={tab === "skills" ? "on" : ""} onClick={() => setTab("skills")}>🎯 Compétences</button>
+        <button className={tab === "reports" ? "on" : ""} onClick={() => setTab("reports")}>📄 Bulletins</button>
+        <button className={tab === "messages" ? "on" : ""} onClick={() => setTab("messages")}>✉️ Messages</button>
         <button className={tab === "life" ? "on" : ""} onClick={() => setTab("life")}>🧾 Vie scolaire</button>
       </div>
-      {tab === "work" && classes.length > 1 && (
+      {(tab === "work" || tab === "messages") && classes.length > 1 && (
         <div className="class-picker">
           {classes.map((c) => (
             <button key={c.id} className={c.id === selected ? "on" : ""} onClick={() => setSelected(c.id)}>
@@ -67,6 +70,12 @@ export default function Student({ userId, name }: { userId: string; name: string
       {error && <p className="error">{error}</p>}
       {tab === "timetable" ? (
         <StudentTimetable classes={classes} />
+      ) : tab === "skills" ? (
+        <StudentCompetences />
+      ) : tab === "reports" ? (
+        <StudentBulletins />
+      ) : tab === "messages" ? (
+        selected ? <StudentMessages key={selected} userId={userId} classId={selected} /> : <p className="muted empty">Tu n&apos;as pas encore de classe.</p>
       ) : tab === "notes" ? (
         <StudentNotes />
       ) : tab === "life" ? (

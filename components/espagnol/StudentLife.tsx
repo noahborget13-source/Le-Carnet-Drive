@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
+  LEVELS,
+  PERIOD_LABEL,
   REMARK_LABEL,
   STATUS_LABEL,
   formatDateTime,
@@ -12,7 +14,9 @@ import {
   weightedAverage,
   type Attendance,
   type ClassRow,
+  type Message,
   type Remark,
+  type Report,
 } from "@/lib/espagnol";
 import Timetable from "./Timetable";
 
@@ -172,6 +176,159 @@ export function StudentNotes() {
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+// Compétences évaluées
+export function StudentCompetences() {
+  const [rows, setRows] = useState<{ level: number; es_competencies: { title: string } | null }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    getEs()
+      .from("es_competency_marks")
+      .select("level,es_competencies(title)")
+      .then(({ data, error }) => {
+        if (error) setError(error.message);
+        else setRows((data ?? []) as unknown as { level: number; es_competencies: { title: string } | null }[]);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) return <p className="muted">Chargement…</p>;
+  if (error) return <p className="error">{error}</p>;
+  return (
+    <div>
+      <h3 className="sect">Mes compétences</h3>
+      {rows.length === 0 ? (
+        <p className="muted empty">Aucune compétence évaluée pour l&apos;instant.</p>
+      ) : (
+        <ul className="list simple">
+          {rows.map((r, i) => {
+            const l = LEVELS.find((x) => x.n === r.level);
+            return (
+              <li key={i}>
+                <span className="text">{r.es_competencies?.title}</span>
+                <span className={`lvl lvl-${r.level}`}>{l?.label}</span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// Bulletins publiés
+export function StudentBulletins() {
+  const [rows, setRows] = useState<Report[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    getEs()
+      .from("es_reports")
+      .select("*")
+      .order("period")
+      .then(({ data, error }) => {
+        if (error) setError(error.message);
+        else setRows((data ?? []) as Report[]);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) return <p className="muted">Chargement…</p>;
+  if (error) return <p className="error">{error}</p>;
+  return (
+    <div>
+      <h3 className="sect">Mes bulletins</h3>
+      {rows.length === 0 ? (
+        <p className="muted empty">Aucun bulletin publié.</p>
+      ) : (
+        rows.map((r) => (
+          <article key={r.period} className="card post">
+            <header><span className="badge resource">{PERIOD_LABEL[r.period]}</span></header>
+            <p className="body">{r.comment || "Pas d'appréciation."}</p>
+          </article>
+        ))
+      )}
+    </div>
+  );
+}
+
+// Informations de la classe et messagerie avec le professeur
+export function StudentMessages({ userId, classId }: { userId: string; classId: string }) {
+  const es = getEs();
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const { data, error } = await es.from("es_messages").select("*").eq("class_id", classId).order("created_at");
+    if (error) setError(error.message);
+    else setMessages((data ?? []) as Message[]);
+  }, [es, classId]);
+
+  useEffect(() => {
+    load();
+    const t = window.setInterval(load, 20000);
+    return () => window.clearInterval(t);
+  }, [load]);
+
+  async function send(e: React.FormEvent) {
+    e.preventDefault();
+    if (!text.trim()) return;
+    setBusy(true);
+    const { error } = await es
+      .from("es_messages")
+      .insert({ class_id: classId, student_id: userId, sender_id: userId, body: text.trim() });
+    setBusy(false);
+    if (error) setError(error.message);
+    else {
+      setText("");
+      await load();
+    }
+  }
+
+  const infos = messages.filter((m) => m.student_id === null).slice().reverse();
+  const mine = messages.filter((m) => m.student_id === userId);
+
+  return (
+    <div>
+      {error && <p className="error">{error}</p>}
+      <h3 className="sect">Informations</h3>
+      {infos.length === 0 ? (
+        <p className="muted empty">Aucune information.</p>
+      ) : (
+        infos.map((m) => (
+          <article key={m.id} className="card post">
+            <header>
+              <span className="badge announcement">Information</span>
+              <span className="muted small date">{formatDateTime(m.created_at)}</span>
+            </header>
+            <p className="body">{m.body}</p>
+          </article>
+        ))
+      )}
+      <h3 className="sect">Messages avec mon professeur</h3>
+      <div className="card thread">
+        <div className="bubbles">
+          {mine.length === 0 && <p className="muted small">Aucun message.</p>}
+          {mine.map((m) => (
+            <div key={m.id} className={`bubble ${m.sender_id === userId ? "me" : "them"}`}>
+              <p>{m.body}</p>
+              <span className="muted small">{formatDateTime(m.created_at)}</span>
+            </div>
+          ))}
+        </div>
+        <form className="inline-form" onSubmit={send}>
+          <input type="text" value={text} placeholder="Écrire à mon professeur…" onChange={(e) => setText(e.target.value)} />
+          <button className="primary" disabled={busy || !text.trim()}>Envoyer</button>
+        </form>
+      </div>
     </div>
   );
 }
