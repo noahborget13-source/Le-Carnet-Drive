@@ -43,6 +43,7 @@ export default function Appel({
   const [members, setMembers] = useState<string[]>([]);
   const [att, setAtt] = useState<Map<string, Attendance>>(new Map());
   const [remarks, setRemarks] = useState<Remark[]>([]);
+  const [part, setPart] = useState<Map<string, number>>(new Map());
   const [topic, setTopic] = useState("");
   const [open, setOpen] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -66,18 +67,20 @@ export default function Appel({
       }
       s = ins.data as Session;
     }
-    const [m, a, r] = await Promise.all([
+    const [m, a, r, p] = await Promise.all([
       es.from("es_members").select("student_id").eq("class_id", cls.id),
       es.from("es_attendance").select("*").eq("session_id", s.id),
       es.from("es_remarks").select("*").eq("session_id", s.id).order("created_at"),
+      es.from("es_participation").select("student_id,rating").eq("session_id", s.id),
     ]);
-    if (m.error || a.error || r.error) setError((m.error ?? a.error ?? r.error)!.message);
+    if (m.error || a.error || r.error || p.error) setError((m.error ?? a.error ?? r.error ?? p.error)!.message);
     else {
       setSession(s);
       setTopic(s.topic);
       setMembers((m.data ?? []).map((x: { student_id: string }) => x.student_id));
       setAtt(new Map(((a.data ?? []) as Attendance[]).map((x): [string, Attendance] => [x.student_id, x])));
       setRemarks((r.data ?? []) as Remark[]);
+      setPart(new Map(((p.data ?? []) as { student_id: string; rating: number }[]).map((x): [string, number] => [x.student_id, x.rating])));
     }
     setLoading(false);
   }, [es, cls.id, date, start, end, room, slotId]);
@@ -104,6 +107,15 @@ export default function Appel({
       reason: patch.status === "present" ? "" : (patch.reason ?? prev?.reason ?? ""),
     };
     setAtt((cur) => new Map(cur).set(studentId, row));
+    if (patch.status === "absent" && part.has(studentId)) {
+      // un élève absent n'a pas de note de participation
+      setPart((cur) => {
+        const next = new Map(cur);
+        next.delete(studentId);
+        return next;
+      });
+      await es.from("es_participation").delete().eq("session_id", session.id).eq("student_id", studentId);
+    }
     const { error } = await es
       .from("es_attendance")
       .upsert({ ...row, updated_at: new Date().toISOString() }, { onConflict: "session_id,student_id" });
@@ -129,6 +141,29 @@ export default function Appel({
     if (error) setError(error.message);
     await load();
     onSaved();
+  }
+
+  async function rate(studentId: string, rating: number) {
+    if (!session) return;
+    const same = part.get(studentId) === rating;
+    setPart((cur) => {
+      const next = new Map(cur);
+      if (same) next.delete(studentId);
+      else next.set(studentId, rating);
+      return next;
+    });
+    const { error } = same
+      ? await es.from("es_participation").delete().eq("session_id", session.id).eq("student_id", studentId)
+      : await es
+          .from("es_participation")
+          .upsert(
+            { session_id: session.id, student_id: studentId, rating, updated_at: new Date().toISOString() },
+            { onConflict: "session_id,student_id" }
+          );
+    if (error) {
+      setError(error.message);
+      load();
+    } else onSaved();
   }
 
   async function saveTopic() {
@@ -236,6 +271,24 @@ export default function Appel({
                             💬 {mine.length > 0 ? mine.length : "+"}
                           </button>
                         </div>
+                        {a && a.status !== "absent" && (
+                          <div className="stars" role="group" aria-label={`Participation de ${r.name}`}>
+                            <span className="muted small">Participation</span>
+                            {[1, 2, 3, 4, 5].map((n) => (
+                              <button
+                                key={n}
+                                type="button"
+                                className={`star${(part.get(r.id) ?? 0) >= n ? " on" : ""}`}
+                                onClick={() => rate(r.id, n)}
+                                aria-label={`${n} sur 5`}
+                                aria-pressed={part.get(r.id) === n}
+                              >
+                                ★
+                              </button>
+                            ))}
+                            {part.has(r.id) && <span className="muted small">{part.get(r.id)}/5</span>}
+                          </div>
+                        )}
                         {a && a.status !== "present" && (
                           <div className="appel-detail">
                             {a.status === "late" && (

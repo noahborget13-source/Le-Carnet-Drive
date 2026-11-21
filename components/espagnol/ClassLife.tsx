@@ -31,6 +31,7 @@ export default function ClassLife({
   const [sessions, setSessions] = useState<Session[]>([]);
   const [att, setAtt] = useState<Attendance[]>([]);
   const [remarks, setRemarks] = useState<Remark[]>([]);
+  const [part, setPart] = useState<{ session_id: string; student_id: string; rating: number }[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [appel, setAppel] = useState<AppelTarget | null>(null);
   const [loading, setLoading] = useState(true);
@@ -46,14 +47,16 @@ export default function ClassLife({
     const list = (s.data ?? []) as Session[];
     setSessions(list);
     const ids = list.map((x) => x.id);
-    const [a, r] = await Promise.all([
+    const [a, r, p] = await Promise.all([
       ids.length ? es.from("es_attendance").select("*").in("session_id", ids) : Promise.resolve({ data: [], error: null }),
       es.from("es_remarks").select("*").eq("class_id", cls.id).order("created_at", { ascending: false }),
+      ids.length ? es.from("es_participation").select("*").in("session_id", ids) : Promise.resolve({ data: [], error: null }),
     ]);
-    if (a.error || r.error) setError((a.error ?? r.error)!.message);
+    if (a.error || r.error || p.error) setError((a.error ?? r.error ?? p.error)!.message);
     else {
       setAtt((a.data ?? []) as Attendance[]);
       setRemarks((r.data ?? []) as Remark[]);
+      setPart((p.data ?? []) as { session_id: string; student_id: string; rating: number }[]);
     }
     setLoading(false);
   }, [es, cls.id]);
@@ -90,6 +93,7 @@ export default function ClassLife({
         unexcused: mine.filter((a) => a.status === "absent" && !a.excused).length,
         lates: mine.filter((a) => a.status === "late").length,
         remarks: remarks.filter((r) => r.student_id === id).length,
+        ratings: part.filter((x) => x.student_id === id).map((x) => x.rating),
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name, "fr"));
@@ -115,6 +119,7 @@ export default function ClassLife({
                 <th>Absences</th>
                 <th>dont non justifiées</th>
                 <th>Retards</th>
+                <th>Participation</th>
                 <th>Observations</th>
               </tr>
             </thead>
@@ -125,6 +130,11 @@ export default function ClassLife({
                   <td>{r.absences}</td>
                   <td className={r.unexcused > 0 ? "warn" : ""}>{r.unexcused}</td>
                   <td>{r.lates}</td>
+                  <td>
+                    {r.ratings.length === 0
+                      ? "—"
+                      : `${(r.ratings.reduce((s, n) => s + n, 0) / r.ratings.length).toLocaleString("fr-FR", { maximumFractionDigits: 1 })}/5 (${r.ratings.length})`}
+                  </td>
                   <td>{r.remarks}</td>
                 </tr>
               ))}
