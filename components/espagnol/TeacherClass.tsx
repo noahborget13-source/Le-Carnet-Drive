@@ -33,6 +33,7 @@ export default function TeacherClass({ userId, cls, profiles, onDeleted, onProfi
   const [subs, setSubs] = useState<Submission[]>([]);
   const [members, setMembers] = useState<string[]>([]);
   const [codes, setCodes] = useState<Map<string, string>>(new Map());
+  const [doneRows, setDoneRows] = useState<{ post_id: string; student_id: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<"posts" | "students">("posts");
@@ -53,6 +54,12 @@ export default function TeacherClass({ userId, cls, profiles, onDeleted, onProfi
     else {
       const list = (p.data ?? []) as Post[];
       setPosts(list);
+      const todoIds = list.filter((x) => x.kind === "todo").map((x) => x.id);
+      if (todoIds.length) {
+        const d = await es.from("es_post_done").select("post_id,student_id").in("post_id", todoIds);
+        if (d.error) setError(d.error.message);
+        else setDoneRows((d.data ?? []) as { post_id: string; student_id: string }[]);
+      } else setDoneRows([]);
       setCodes(new Map(((k.data ?? []) as { user_id: string; code: string }[]).map((x): [string, string] => [x.user_id, x.code])));
       setMembers((m.data ?? []).map((x: { student_id: string }) => x.student_id));
       const ids = list.filter((x) => x.kind === "assignment").map((x) => x.id);
@@ -130,6 +137,8 @@ export default function TeacherClass({ userId, cls, profiles, onDeleted, onProfi
                   post={p}
                   subs={subs.filter((s) => s.post_id === p.id)}
                   studentCount={members.length}
+                  members={members}
+                  doneBy={doneRows.filter((d) => d.post_id === p.id).map((d) => d.student_id)}
                   profiles={profiles}
                   onChanged={load}
                 />
@@ -265,12 +274,16 @@ function PostCard({
   post,
   subs,
   studentCount,
+  members,
+  doneBy,
   profiles,
   onChanged,
 }: {
   post: Post;
   subs: Submission[];
   studentCount: number;
+  members: string[];
+  doneBy: string[];
   profiles: Map<string, Profile>;
   onChanged: () => void;
 }) {
@@ -311,6 +324,11 @@ function PostCard({
       <Attachments files={files} />
       {error && <p className="error">{error}</p>}
       <div className="post-actions">
+        {post.kind === "todo" && (
+          <button onClick={() => setOpen(!open)}>
+            {open ? "Masquer" : "Voir"} qui a fini ({doneBy.length}/{studentCount})
+          </button>
+        )}
         {post.kind === "assignment" && (
           <button onClick={() => setOpen(!open)}>
             {open ? "Masquer" : "Voir"} les rendus ({subs.length}/{studentCount})
@@ -319,7 +337,25 @@ function PostCard({
         <button onClick={togglePublished}>{post.published ? "Masquer aux élèves" : "Publier"}</button>
         <button className="danger" onClick={remove}>Supprimer</button>
       </div>
-      {open && (
+      {open && post.kind === "todo" && (
+        <div className="subs">
+          {members.length === 0 ? (
+            <p className="muted small">Aucun élève dans la classe.</p>
+          ) : (
+            <>
+              <p className="small">
+                <strong>Ont fini :</strong>{" "}
+                {members.filter((id) => doneBy.includes(id)).map((id) => profiles.get(id)?.full_name || "Élève").join(", ") || "personne pour l'instant"}
+              </p>
+              <p className="small">
+                <strong>Pas encore :</strong>{" "}
+                {members.filter((id) => !doneBy.includes(id)).map((id) => profiles.get(id)?.full_name || "Élève").join(", ") || "tout le monde a fini 🎉"}
+              </p>
+            </>
+          )}
+        </div>
+      )}
+      {open && post.kind === "assignment" && (
         <div className="subs">
           {subs.length === 0 ? (
             <p className="muted small">Aucun rendu pour l&apos;instant.</p>

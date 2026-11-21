@@ -67,6 +67,7 @@ function Feed({ userId, classId }: { userId: string; classId: string }) {
   const es = getEs();
   const [posts, setPosts] = useState<Post[]>([]);
   const [subs, setSubs] = useState<Submission[]>([]);
+  const [done, setDone] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -89,8 +90,32 @@ function Feed({ userId, classId }: { userId: string; classId: string }) {
       if (s.error) setError(s.error.message);
       else setSubs((s.data ?? []) as Submission[]);
     } else setSubs([]);
+    const todoIds = list.filter((x) => x.kind === "todo").map((x) => x.id);
+    if (todoIds.length) {
+      const d = await es.from("es_post_done").select("post_id").in("post_id", todoIds);
+      if (d.error) setError(d.error.message);
+      else setDone(new Set((d.data ?? []).map((x: { post_id: string }) => x.post_id)));
+    } else setDone(new Set());
     setLoading(false);
   }, [es, classId]);
+
+  async function toggleDone(postId: string) {
+    const isDone = done.has(postId);
+    // mise à jour immédiate, annulée en cas d'erreur
+    setDone((prev) => {
+      const next = new Set(prev);
+      if (isDone) next.delete(postId);
+      else next.add(postId);
+      return next;
+    });
+    const { error } = isDone
+      ? await es.from("es_post_done").delete().eq("post_id", postId).eq("student_id", userId)
+      : await es.from("es_post_done").insert({ post_id: postId });
+    if (error) {
+      setError(error.message);
+      load();
+    }
+  }
 
   useEffect(() => {
     load();
@@ -108,6 +133,8 @@ function Feed({ userId, classId }: { userId: string; classId: string }) {
           post={p}
           userId={userId}
           sub={subs.find((s) => s.post_id === p.id) ?? null}
+          done={done.has(p.id)}
+          onToggleDone={() => toggleDone(p.id)}
           onChanged={load}
         />
       ))}
@@ -119,11 +146,15 @@ function StudentPost({
   post,
   userId,
   sub,
+  done,
+  onToggleDone,
   onChanged,
 }: {
   post: Post;
   userId: string;
   sub: Submission | null;
+  done: boolean;
+  onToggleDone: () => void;
   onChanged: () => void;
 }) {
   const files = postFiles(post);
@@ -137,6 +168,9 @@ function StudentPost({
         {post.kind === "assignment" && (
           <span className={`badge status ${sub ? "done" : overdue ? "late" : "todo"}`}>{status}</span>
         )}
+        {post.kind === "todo" && (
+          <span className={`badge status ${done ? "done" : "todo"}`}>{done ? "Fait ✓" : "À faire"}</span>
+        )}
         <span className="muted small date">{formatDateTime(post.created_at)}</span>
       </header>
       <h3>{post.title}</h3>
@@ -147,6 +181,12 @@ function StudentPost({
       )}
       {post.body && <p className="body">{post.body}</p>}
       <Attachments files={files} />
+      {post.kind === "todo" && (
+        <label className="check done-check">
+          <input type="checkbox" checked={done} onChange={onToggleDone} />
+          J&apos;ai fini ce travail
+        </label>
+      )}
       {post.kind === "assignment" && <SubmitBox post={post} userId={userId} sub={sub} onChanged={onChanged} />}
     </article>
   );
