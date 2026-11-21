@@ -140,7 +140,11 @@ function StudentPost({
         <span className="muted small date">{formatDateTime(post.created_at)}</span>
       </header>
       <h3>{post.title}</h3>
-      {post.due_at && <p className="due small">📅 À rendre avant le {formatDateTime(post.due_at)}</p>}
+      {post.due_at && (
+        <p className="due small">
+          📅 {post.kind === "todo" ? "À faire pour le" : "À rendre avant le"} {formatDateTime(post.due_at)}
+        </p>
+      )}
       {post.body && <p className="body">{post.body}</p>}
       <Attachments files={files} />
       {post.kind === "assignment" && <SubmitBox post={post} userId={userId} sub={sub} onChanged={onChanged} />}

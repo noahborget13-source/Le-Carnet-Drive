@@ -178,7 +178,7 @@ function Composer({ userId, classId, onCreated }: { userId: string; classId: str
         kind,
         title: title.trim(),
         body: body.trim(),
-        due_at: kind === "assignment" ? localToIso(due) : null,
+        due_at: kind === "assignment" || kind === "todo" ? localToIso(due) : null,
         published,
       })
       .select("id")
@@ -208,13 +208,14 @@ function Composer({ userId, classId, onCreated }: { userId: string; classId: str
           Type
           <select value={kind} onChange={(e) => setKind(e.target.value as PostKind)}>
             <option value="resource">Ressource / contenu de cours</option>
-            <option value="assignment">Devoir à rendre</option>
+            <option value="todo">Travail à faire (rien à rendre)</option>
+            <option value="assignment">Travail à rendre (les élèves déposent leur rendu)</option>
             <option value="announcement">Annonce</option>
           </select>
         </label>
-        {kind === "assignment" && (
+        {(kind === "assignment" || kind === "todo") && (
           <label>
-            À rendre avant le
+            {kind === "todo" ? "Pour le" : "À rendre avant le"}
             <input type="datetime-local" value={due} onChange={(e) => setDue(e.target.value)} />
           </label>
         )}
@@ -301,7 +302,11 @@ function PostCard({
         <span className="muted small date">{formatDateTime(post.created_at)}</span>
       </header>
       <h3>{post.title}</h3>
-      {post.due_at && <p className="due small">📅 À rendre avant le {formatDateTime(post.due_at)}</p>}
+      {post.due_at && (
+        <p className="due small">
+          📅 {post.kind === "todo" ? "À faire pour le" : "À rendre avant le"} {formatDateTime(post.due_at)}
+        </p>
+      )}
       {post.body && <p className="body">{post.body}</p>}
       <Attachments files={files} />
       {error && <p className="error">{error}</p>}

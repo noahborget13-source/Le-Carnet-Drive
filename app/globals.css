@@ -204,6 +204,7 @@ input[type="checkbox"] { width: auto; accent-color: var(--accent); }
 .badge.role.teacher { color: var(--accent); border-color: var(--accent); }
 .badge.resource { color: var(--accent); border-color: var(--accent); }
 .badge.assignment { color: #d98324; border-color: #d98324; }
+.badge.todo { color: #8b5cf6; border-color: #8b5cf6; }
 .badge.announcement { color: #2f9e6b; border-color: #2f9e6b; }
 .badge.draft { color: var(--text-dimmer); border-style: dashed; }
 .badge.status.todo { color: var(--text-dim); }
@@ -246,6 +247,7 @@ button.mini { padding: 3px 8px; border-radius: 999px; font-size: 0.8rem; }
 .card.post { padding: 18px 20px; border-left: 3px solid var(--border-soft); }
 .card.post.kind-resource { border-left-color: var(--accent); }
 .card.post.kind-assignment { border-left-color: #d98324; }
+.card.post.kind-todo { border-left-color: #8b5cf6; }
 .card.post.kind-announcement { border-left-color: #2f9e6b; }
 .card.post.draft { opacity: 0.75; border-style: dashed; }
 .post header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }

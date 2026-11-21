@@ -62,11 +62,12 @@ export type SubFile = {
   mime_type: string | null;
 };
 
-export type PostKind = "resource" | "assignment" | "announcement";
+export type PostKind = "resource" | "assignment" | "todo" | "announcement";
 
 export const KIND_LABEL: Record<PostKind, string> = {
   resource: "Ressource",
-  assignment: "Devoir",
+  assignment: "Travail à rendre",
+  todo: "Travail à faire",
   announcement: "Annonce",
 };
 
