@@ -688,3 +688,11 @@ td.note-cell.lvl-3 { background: #dff3e6 !important; } td.note-cell.lvl-4 { back
 .tap-table tr.st-absent td { background: #e1e4e7 !important; color: #8b949c; }
 .tap-table tr.st-absent td:not(.abs) { pointer-events: none; opacity: 0.7; }
 .tap-table tr.st-absent td.who-name { text-decoration: line-through; }
+
+/* appel validé : grille verrouillée */
+.valid-box { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border: 1px solid #aeb7bd; border-radius: 4px; font-weight: 700; cursor: pointer; background: #fff; }
+.valid-box.on { background: #cfeee0; border-color: #4cc09a; color: #1d6b40; }
+.valid-box input { width: 18px; height: 18px; }
+.tap-table.locked { opacity: 0.8; }
+.tap-table.locked td, .tap-table.locked .stars, .tap-table.locked .detail { pointer-events: none; }
+.tap-table.locked td.tap:hover { background: inherit !important; }

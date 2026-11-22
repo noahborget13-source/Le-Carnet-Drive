@@ -120,6 +120,7 @@ export default function AppelSheet({
 
   // Écrit la ligne d'un élève ; supprimée quand il n'y a plus rien à signaler (= présent)
   async function writeRow(studentId: string, next: Attendance | null) {
+    if (session?.validated_at) return;
     const sess = await ensureSession();
     if (!sess) return;
     const empty = !next || (next.status === "present" && !next.infirmary && !next.excluded && !next.exempt);
@@ -181,6 +182,7 @@ export default function AppelSheet({
   }
 
   async function rate(id: string, rating: number) {
+    if (session?.validated_at) return;
     const sess = await ensureSession();
     if (!sess) return;
     const same = part.get(id) === rating;
@@ -241,6 +243,21 @@ export default function AppelSheet({
     else setSession({ ...sess, topic });
   }
 
+  async function unvalidate() {
+    if (!session) return;
+    const { data, error } = await es
+      .from("es_sessions")
+      .update({ validated_at: null })
+      .eq("id", session.id)
+      .select()
+      .single();
+    if (error) setError(error.message);
+    else {
+      setSession(data as Session);
+      onSaved();
+    }
+  }
+
   async function validate() {
     const sess = await ensureSession();
     if (!sess) return;
@@ -256,6 +273,8 @@ export default function AppelSheet({
       onSaved();
     }
   }
+
+  const locked = !!session?.validated_at;
 
   const rows = members
     .map((id) => ({ id, name: profiles.get(id)?.full_name || "(sans nom)" }))
@@ -276,14 +295,11 @@ export default function AppelSheet({
           </p>
         </div>
         <div className="appel-valid">
-          {session?.validated_at ? (
-            <span className="ok small">✓ Appel validé le {formatDateTime(session.validated_at)}</span>
-          ) : (
-            <span className="muted small">Appel non validé</span>
-          )}
-          <button className="primary" onClick={validate} disabled={loading}>
-            {session?.validated_at ? "Valider à nouveau" : "Valider l'appel"}
-          </button>
+          <label className={`valid-box${locked ? " on" : ""}`}>
+            <input type="checkbox" checked={locked} disabled={loading} onChange={(e) => (e.target.checked ? validate() : unvalidate())} />
+            <span>Appel validé</span>
+          </label>
+          {session?.validated_at && <span className="muted small">le {formatDateTime(session.validated_at)}</span>}
         </div>
       </div>
 
@@ -298,6 +314,7 @@ export default function AppelSheet({
               type="text"
               value={topic}
               placeholder="Ex. : le passé composé, exercices p. 42"
+              disabled={locked}
               onChange={(e) => setTopic(e.target.value)}
               onBlur={saveTopic}
             />
@@ -311,7 +328,7 @@ export default function AppelSheet({
             <p className="muted empty">Aucun élève dans cette classe. Ajoute-les dans « Cahier de textes » → Classes et élèves.</p>
           ) : (
             <div className="table-wrap">
-              <table className="appel-table tap-table">
+              <table className={`appel-table tap-table${locked ? " locked" : ""}`}>
                 <thead>
                   <tr>
                     <th className="left">Élève</th>
@@ -431,7 +448,7 @@ export default function AppelSheet({
           <p className="muted small">Touche une case pour la cocher ou la décocher. Pour les oublis, travaux non faits et observations, une fenêtre s&apos;ouvre pour écrire.</p>
         </>
       )}
-      {dialog && (
+      {dialog && !locked && (
         <RemarkDialog
           title={`${REMARK_LABEL[dialog.kind]} — ${rows.find((x) => x.id === dialog.studentId)?.name ?? ""}`}
           kind={dialog.kind}
