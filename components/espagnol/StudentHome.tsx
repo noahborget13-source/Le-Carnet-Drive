@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import {
   DAYS,
   addDays,
-  fmtNote,
   formatShortDay,
   getEs,
   hhmm,
@@ -13,15 +12,11 @@ import {
   toYmd,
   weekKindOf,
   type ClassRow,
-  type Message,
   type Post,
   type Slot,
 } from "@/lib/espagnol";
 
-export type StudentTab = "home" | "work" | "timetable" | "notes" | "skills" | "reports" | "life" | "messages";
-
-type GradeRow = { value: number | null; absent: boolean; es_assessments: { title: string; date: string; scale: number } | null };
-type AttRow = { status: string; excused: boolean; es_sessions: { date: string; start_time: string; end_time: string } | null };
+export type StudentTab = "home" | "work" | "timetable";
 
 const minutes = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
 
@@ -41,38 +36,22 @@ export default function StudentHome({
   const [q1, setQ1] = useState<string | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [done, setDone] = useState<Set<string>>(new Set());
-  const [grades, setGrades] = useState<GradeRow[]>([]);
-  const [att, setAtt] = useState<AttRow[]>([]);
-  const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const [s, st, p, d, g, a, m] = await Promise.all([
+    const [s, st, p, d] = await Promise.all([
       es.from("es_slots").select("*").order("start_time"),
       es.from("es_settings").select("q1_monday").limit(1).maybeSingle(),
       es.from("es_posts").select(POST_SELECT),
       es.from("es_post_done").select("post_id"),
-      es.from("es_grades").select("value,absent,es_assessments(title,date,scale)"),
-      es
-        .from("es_attendance")
-        .select("status,excused,es_sessions(date,start_time,end_time)")
-        .neq("status", "present"),
-      es.from("es_messages").select("*").order("created_at", { ascending: false }),
     ]);
-    const err = [s, st, p, d, g, a, m].find((x) => x.error);
+    const err = [s, st, p, d].find((x) => x.error);
     if (err?.error) setError(err.error.message);
     setSlots((s.data ?? []) as Slot[]);
     setQ1((st.data as { q1_monday: string } | null)?.q1_monday ?? null);
     setPosts((p.data ?? []) as unknown as Post[]);
     setDone(new Set((d.data ?? []).map((x: { post_id: string }) => x.post_id)));
-    const gl = (g.data ?? []) as unknown as GradeRow[];
-    gl.sort((x, y) => (y.es_assessments?.date ?? "").localeCompare(x.es_assessments?.date ?? ""));
-    setGrades(gl);
-    const al = (a.data ?? []) as unknown as AttRow[];
-    al.sort((x, y) => (y.es_sessions?.date ?? "").localeCompare(x.es_sessions?.date ?? ""));
-    setAtt(al);
-    setMessages((m.data ?? []) as Message[]);
     setLoading(false);
   }, [es]);
 
@@ -117,9 +96,6 @@ export default function StudentHome({
     .sort((a, b) => dueDate(a)!.localeCompare(dueDate(b)!));
   const groups = new Map<string, Post[]>();
   for (const p of upcoming) groups.set(dueDate(p)!, [...(groups.get(dueDate(p)!) ?? []), p]);
-
-  const infos = messages.filter((m) => m.student_id === null);
-  const fromTeacher = messages.filter((m) => m.student_id === userId && m.sender_id !== userId);
 
   return (
     <div className="sh-grid">
@@ -190,66 +166,6 @@ export default function StudentHome({
         )}
       </section>
 
-      <div className="sh-col">
-        <section className="widget">
-          <button className="see-all" onClick={() => onGo("life")}>Tout voir ↗</button>
-          <h3>Carnet de correspondance</h3>
-          {att.length === 0 ? (
-            <p className="muted center">Rien à signaler</p>
-          ) : (
-            att.slice(0, 3).map((a, i) => (
-              <p key={i} className="carnet">
-                <strong>{a.status === "absent" ? "Absence" : "Retard"}</strong>
-                <br />
-                {a.es_sessions ? `le ${formatShortDay(a.es_sessions.date)} à ${hhmm(a.es_sessions.start_time)}` : ""}
-              </p>
-            ))
-          )}
-        </section>
-
-        <section className="widget">
-          <button className="see-all" onClick={() => onGo("notes")}>Tout voir ↗</button>
-          <h3>Dernières notes</h3>
-          {grades.length === 0 ? (
-            <p className="muted center">Aucune note</p>
-          ) : (
-            grades.slice(0, 8).map((g, i) => (
-              <div key={i} className="grade-line">
-                <span>
-                  <strong>{g.es_assessments?.title}</strong>
-                  <br />
-                  <span className="muted">{g.es_assessments ? `le ${formatShortDay(g.es_assessments.date)}` : ""}</span>
-                </span>
-                <span className="grade-pill">
-                  {g.absent ? "Abs" : fmtNote(g.value)}
-                  {!g.absent && g.es_assessments && g.es_assessments.scale !== 20 ? <small> /{g.es_assessments.scale}</small> : null}
-                </span>
-              </div>
-            ))
-          )}
-        </section>
-      </div>
-
-      <div className="sh-col">
-        <section className="widget">
-          <button className="see-all" onClick={() => onGo("messages")}>Tout voir ↗</button>
-          <h3>Informations &amp; Sondages</h3>
-          {infos.length === 0 ? (
-            <p className="muted center">Aucune nouvelle information</p>
-          ) : (
-            infos.slice(0, 2).map((m) => <p key={m.id} className="carnet">{m.body}</p>)
-          )}
-        </section>
-        <section className="widget">
-          <button className="see-all" onClick={() => onGo("messages")}>Tout voir ↗</button>
-          <h3>Discussions</h3>
-          {fromTeacher.length === 0 ? (
-            <p className="muted center">Aucun nouveau message</p>
-          ) : (
-            <p className="carnet">{fromTeacher[0].body}</p>
-          )}
-        </section>
-      </div>
     </div>
   );
 }

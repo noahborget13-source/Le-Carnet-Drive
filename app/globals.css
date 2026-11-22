@@ -696,3 +696,8 @@ td.note-cell.lvl-3 { background: #dff3e6 !important; } td.note-cell.lvl-4 { back
 .tap-table.locked { opacity: 0.8; }
 .tap-table.locked td, .tap-table.locked .stars, .tap-table.locked .detail { pointer-events: none; }
 .tap-table.locked td.tap:hover { background: inherit !important; }
+
+/* pastille de connexion des élèves */
+.login-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; vertical-align: -1px; box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.08); }
+.login-dot.on { background: #2fb36d; }
+.login-dot.off { background: #e5484d; }

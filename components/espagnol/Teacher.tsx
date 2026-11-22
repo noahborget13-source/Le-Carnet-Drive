@@ -1,44 +1,32 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { getEs, mondayOf, weekKindOf, type AppelTarget, type ClassRow, type Profile } from "@/lib/espagnol";
+import { getEs, mondayOf, weekKindOf, type ClassRow, type Profile } from "@/lib/espagnol";
 import NotebookMark from "../NotebookMark";
-import AppelPage from "./AppelPage";
-import Bilan from "./Bilan";
 import CahierSaisie from "./CahierSaisie";
-import Bulletins from "./Bulletins";
-import Communication from "./Communication";
-import Competences from "./Competences";
 import Home from "./Home";
-import Notes from "./Notes";
 import Recap from "./Recap";
 import Library from "./Library";
 import TeacherClass from "./TeacherClass";
 import Timetable from "./Timetable";
 
-type Tab = "home" | "timetable" | "classes" | "notes" | "skills" | "reports" | "life" | "comm" | "library";
+type Tab = "home" | "timetable" | "classes" | "library";
 
 const SUBS: Record<Tab, { id: string; label: string }[]> = {
   home: [],
-  timetable: [{ id: "week", label: "Emploi du temps" }],
-  classes: [{ id: "saisie", label: "Saisie" }, { id: "recap", label: "Récapitulatif" }, { id: "classes", label: "Classes et élèves" }],
-  notes: [{ id: "saisie", label: "Saisie des notes" }],
-  skills: [{ id: "eval", label: "Évaluations" }],
-  reports: [{ id: "app", label: "Saisie des appréciations" }],
-  life: [{ id: "appel", label: "Appel" }, { id: "bilan", label: "Bilan et observations" }],
-  comm: [{ id: "info", label: "Information" }, { id: "mail", label: "Discussion" }],
-  library: [{ id: "res", label: "Ressources pédagogiques" }],
+  classes: [
+    { id: "saisie", label: "Saisie" },
+    { id: "recap", label: "Récapitulatif" },
+    { id: "classes", label: "Classes et élèves" },
+  ],
+  timetable: [],
+  library: [],
 };
 
 const NAV: { id: Tab; label: string }[] = [
-  { id: "library", label: "Outils pédagogiques" },
   { id: "classes", label: "Cahier de textes" },
-  { id: "notes", label: "Notes" },
-  { id: "reports", label: "Bulletins" },
-  { id: "skills", label: "Compétences" },
-  { id: "life", label: "Vie scolaire" },
   { id: "timetable", label: "Emploi du temps" },
-  { id: "comm", label: "Communication" },
+  { id: "library", label: "Ressources" },
 ];
 
 // Espace professeur : en-tête, onglets, pages (présentation inspirée de Pronote)
@@ -52,9 +40,8 @@ export default function Teacher({ profile, onSignOut }: { profile: Profile; onSi
   const [q1, setQ1] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [appel, setAppel] = useState<AppelTarget | null>(null);
   const [subs, setSubs] = useState<Record<Tab, string>>({
-    home: "", timetable: "week", classes: "saisie", notes: "saisie", skills: "eval", reports: "app", life: "appel", comm: "info", library: "res",
+    home: "", timetable: "", classes: "saisie", library: "",
   });
   const sub = subs[tab];
   const setSub = (id: string) => setSubs((cur) => ({ ...cur, [tab]: id }));
@@ -62,7 +49,7 @@ export default function Teacher({ profile, onSignOut }: { profile: Profile; onSi
   const load = useCallback(async () => {
     const [c, p, st] = await Promise.all([
       es.from("es_classes").select("id,name,code,created_at").order("created_at"),
-      es.from("es_profiles").select("id,email,full_name,role"),
+      es.from("es_profiles").select("id,email,full_name,role,last_login_at"),
       es.from("es_settings").select("q1_monday").limit(1).maybeSingle(),
     ]);
     if (c.error) setError(c.error.message);
@@ -83,7 +70,7 @@ export default function Teacher({ profile, onSignOut }: { profile: Profile; onSi
 
   // Rafraîchit les noms des élèves quand on revient sur une page qui les utilise
   useEffect(() => {
-    if (tab === "classes" || tab === "life" || tab === "notes" || tab === "skills" || tab === "reports" || tab === "comm" || tab === "home") load();
+    if (tab === "classes" || tab === "home") load();
   }, [tab, load]);
 
   async function newClass() {
@@ -93,12 +80,6 @@ export default function Teacher({ profile, onSignOut }: { profile: Profile; onSi
     if (error) return setError(error.message);
     await load();
     if (data) setSelected(data.id);
-  }
-
-  function openAppel(t: AppelTarget) {
-    setAppel(t);
-    setSubs((cur) => ({ ...cur, life: "appel" }));
-    setTab("life");
   }
 
   const current = classes.find((c) => c.id === selected) ?? null;
@@ -145,7 +126,7 @@ export default function Teacher({ profile, onSignOut }: { profile: Profile; onSi
         {error && <p className="error">{error}</p>}
         {tab === "library" ? (
           <>
-            <h1 className="pn-title">Ressources pédagogiques</h1>
+            <h1 className="pn-title">Ressources</h1>
             <Library userId={userId} />
           </>
         ) : loading ? (
@@ -153,81 +134,51 @@ export default function Teacher({ profile, onSignOut }: { profile: Profile; onSi
         ) : tab === "home" ? (
           <>
             <h1 className="pn-title">Page d&apos;accueil <span>Bonjour {profile.full_name.split(/\s+/)[0] || ""}</span></h1>
-            <Home classes={classes} profiles={profiles} onOpenAppel={openAppel} onGo={setTab} />
+            <Home classes={classes} profiles={profiles} onGo={setTab} />
           </>
         ) : tab === "timetable" ? (
           <>
             <h1 className="pn-title">Mon emploi du temps</h1>
-            <Timetable classes={classes} userId={userId} onSelect={openAppel} />
-          </>
-        ) : tab === "notes" ? (
-          <>
-            <h1 className="pn-title">Notes</h1>
-            <Notes classes={classes} profiles={profiles} />
-          </>
-        ) : tab === "skills" ? (
-          <>
-            <h1 className="pn-title">Compétences</h1>
-            <Competences classes={classes} profiles={profiles} />
-          </>
-        ) : tab === "reports" ? (
-          <>
-            <h1 className="pn-title">Bulletins</h1>
-            <Bulletins classes={classes} profiles={profiles} />
-          </>
-        ) : tab === "comm" ? (
-          <>
-            <h1 className="pn-title">Communication</h1>
-            <Communication sub={sub === "mail" ? "mail" : "info"} classes={classes} profiles={profiles} />
-          </>
-        ) : tab === "life" ? (
-          <>
-            <h1 className="pn-title">Vie scolaire — {sub === "appel" ? "Appel" : "Bilan et observations"}</h1>
-            {sub === "appel" ? (
-              <AppelPage classes={classes} profiles={profiles} userId={userId} target={appel} onTarget={setAppel} />
-            ) : (
-              <Bilan classes={classes} profiles={profiles} onOpenAppel={openAppel} />
-            )}
+            <Timetable classes={classes} userId={userId} />
           </>
         ) : (
           <>
-            <h1 className="pn-title">Cahier de textes — {sub === "recap" ? "Récapitulatif" : sub === "classes" ? "Classes, élèves et rendus" : "Saisie"}</h1>
+            <h1 className="pn-title">Cahier de textes — {sub === "recap" ? "Récapitulatif" : sub === "classes" ? "Classes et élèves" : "Saisie"}</h1>
             {sub === "recap" ? (
               <Recap classes={classes} />
             ) : sub === "saisie" ? (
               <CahierSaisie classes={classes} userId={userId} />
             ) : (
-            <div className="pn-split">
-              <aside className="pn-list">
-                <h3>Mes classes</h3>
-                {classes.map((c) => (
-                  <button key={c.id} className={c.id === selected ? "on" : ""} onClick={() => setSelected(c.id)}>
-                    {c.name}
-                  </button>
-                ))}
-                <button className="add" onClick={newClass}>+ Nouvelle classe</button>
-              </aside>
-              <div className="pn-main">
-                {current ? (
-                  <TeacherClass
-                    key={current.id}
-                    userId={userId}
-                    cls={current}
-                    profiles={profiles}
-                    onProfilesChanged={load}
-                    onOpenAppel={openAppel}
-                    onDeleted={() => {
-                      setSelected(null);
-                      load();
-                    }}
-                  />
-                ) : (
-                  <p className="muted empty">
-                    Crée ta première classe, puis ajoute tes élèves : chacun reçoit un code de connexion.
-                  </p>
-                )}
+              <div className="pn-split">
+                <aside className="pn-list">
+                  <h3>Mes classes</h3>
+                  {classes.map((c) => (
+                    <button key={c.id} className={c.id === selected ? "on" : ""} onClick={() => setSelected(c.id)}>
+                      {c.name}
+                    </button>
+                  ))}
+                  <button className="add" onClick={newClass}>+ Nouvelle classe</button>
+                </aside>
+                <div className="pn-main">
+                  {current ? (
+                    <TeacherClass
+                      key={current.id}
+                      userId={userId}
+                      cls={current}
+                      profiles={profiles}
+                      onProfilesChanged={load}
+                      onDeleted={() => {
+                        setSelected(null);
+                        load();
+                      }}
+                    />
+                  ) : (
+                    <p className="muted empty">
+                      Crée ta première classe, puis ajoute tes élèves : chacun reçoit un code de connexion.
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
             )}
           </>
         )}

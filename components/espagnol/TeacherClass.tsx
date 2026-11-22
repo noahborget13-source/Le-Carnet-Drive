@@ -36,10 +36,9 @@ type Props = {
   profiles: Map<string, Profile>;
   onDeleted: () => void;
   onProfilesChanged: () => void;
-  onOpenAppel: (t: AppelTarget) => void;
 };
 
-export default function TeacherClass({ userId, cls, profiles, onDeleted, onProfilesChanged, onOpenAppel }: Props) {
+export default function TeacherClass({ userId, cls, profiles, onDeleted, onProfilesChanged }: Props) {
   const es = getEs();
   const [posts, setPosts] = useState<Post[]>([]);
   const [subs, setSubs] = useState<Submission[]>([]);

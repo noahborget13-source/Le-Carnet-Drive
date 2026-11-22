@@ -20,7 +20,12 @@ export default function StudentsPanel({ classId, className, members, profiles, c
   const [notice, setNotice] = useState<string | null>(null);
 
   const rows = members
-    .map((id) => ({ id, name: profiles.get(id)?.full_name || "(sans nom)", code: codes.get(id) ?? "" }))
+    .map((id) => ({
+      id,
+      name: profiles.get(id)?.full_name || "(sans nom)",
+      code: codes.get(id) ?? "",
+      loggedIn: !!profiles.get(id)?.last_login_at,
+    }))
     .sort((a, b) => a.name.localeCompare(b.name, "fr"));
 
   async function create(e: React.FormEvent) {
@@ -116,7 +121,15 @@ export default function StudentsPanel({ classId, className, members, profiles, c
           <ul className="list simple students">
             {rows.map((r) => (
               <li key={r.id}>
-                <span className="text">{r.name}</span>
+                <span className="text">
+                  <span
+                    className={`login-dot ${r.loggedIn ? "on" : "off"}`}
+                    title={r.loggedIn ? "S'est déjà connecté avec son code" : "N'a pas encore tapé son code"}
+                    role="img"
+                    aria-label={r.loggedIn ? "Connecté au moins une fois" : "Jamais connecté"}
+                  />
+                  {r.name}
+                </span>
                 <span className="code">{formatCode(r.code)}</span>
                 <span className="actions">
                   <button onClick={() => navigator.clipboard?.writeText(formatCode(r.code))}>Copier</button>

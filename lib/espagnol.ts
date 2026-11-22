@@ -28,6 +28,7 @@ export type Profile = {
   email: string | null;
   full_name: string;
   role: Role;
+  last_login_at?: string | null; // première connexion avec le code, null = jamais
 };
 
 export type ClassRow = {

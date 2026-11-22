@@ -19,16 +19,11 @@ import { safeName } from "@/lib/files";
 import NotebookMark from "../NotebookMark";
 import Attachments from "./Attachments";
 import StudentHome, { type StudentTab } from "./StudentHome";
-import { StudentBulletins, StudentCompetences, StudentLife, StudentMessages, StudentNotes, StudentTimetable } from "./StudentLife";
+import Timetable from "./Timetable";
 
 const NAV: { id: StudentTab; label: string; title: string }[] = [
   { id: "work", label: "Cahier de textes", title: "Cahier de textes" },
-  { id: "notes", label: "Notes", title: "Notes" },
-  { id: "skills", label: "Compétences", title: "Compétences" },
-  { id: "reports", label: "Bulletins", title: "Bulletins" },
-  { id: "life", label: "Vie scolaire", title: "Vie scolaire" },
   { id: "timetable", label: "Emploi du temps", title: "Emploi du temps" },
-  { id: "messages", label: "Communication", title: "Informations, sondages et discussions" },
 ];
 
 export default function Student({ userId, name, onSignOut }: { userId: string; name: string; onSignOut: () => void }) {
@@ -53,6 +48,11 @@ export default function Student({ userId, name, onSignOut }: { userId: string; n
   useEffect(() => {
     load();
   }, [load]);
+
+  // Mémorise que l'élève a tapé son code (pastille verte côté professeur)
+  useEffect(() => {
+    es.from("es_profiles").update({ last_login_at: new Date().toISOString() }).eq("id", userId).then(() => undefined);
+  }, [es, userId]);
 
   const title = tab === "home" ? "Page d'accueil" : (NAV.find((n) => n.id === tab)?.title ?? "");
   const dateLabel = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
@@ -85,7 +85,7 @@ export default function Student({ userId, name, onSignOut }: { userId: string; n
           <p className="muted">Chargement…</p>
         ) : (
           <>
-            {(tab === "work" || tab === "messages") && classes.length > 1 && (
+            {tab === "work" && classes.length > 1 && (
               <div className="class-picker">
                 {classes.map((c) => (
                   <button key={c.id} className={c.id === selected ? "on" : ""} onClick={() => setSelected(c.id)}>
@@ -97,17 +97,7 @@ export default function Student({ userId, name, onSignOut }: { userId: string; n
             {tab === "home" ? (
               <StudentHome userId={userId} classes={classes} onGo={setTab} />
             ) : tab === "timetable" ? (
-              <StudentTimetable classes={classes} />
-            ) : tab === "skills" ? (
-              <StudentCompetences />
-            ) : tab === "reports" ? (
-              <StudentBulletins />
-            ) : tab === "messages" ? (
-              selected ? <StudentMessages key={selected} userId={userId} classId={selected} /> : <p className="muted empty">Tu n&apos;as pas encore de classe.</p>
-            ) : tab === "notes" ? (
-              <StudentNotes />
-            ) : tab === "life" ? (
-              <StudentLife />
+              <Timetable readOnly classes={classes} />
             ) : selected ? (
               <Feed key={selected} userId={userId} classId={selected} />
             ) : (
