@@ -112,7 +112,7 @@ export default function Teacher({ profile, onSignOut }: { profile: Profile; onSi
         <div className="pn-center">
           <div className="pn-school">COURS D&apos;ESPAGNOL</div>
           <div className="pn-who">
-            Espace Professeurs - {(profile.full_name || profile.email).toUpperCase()}
+            Espace Professeurs - {(profile.full_name || profile.email || "").toUpperCase()}
             <button className="pn-power" onClick={onSignOut} title="Déconnexion" aria-label="Déconnexion">⏻</button>
           </div>
         </div>
