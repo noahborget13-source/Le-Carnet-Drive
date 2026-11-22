@@ -415,7 +415,7 @@ export default function AppelSheet({
                             )}
                           </td>
                         </tr>
-                        {a.status === "late" && (
+                        {a.status === "late" && !locked && (
                           <tr className="detail">
                             <td colSpan={12}>
                               <div className="appel-detail">
