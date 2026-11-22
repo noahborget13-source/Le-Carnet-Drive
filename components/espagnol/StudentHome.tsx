@@ -16,7 +16,7 @@ import {
   type Slot,
 } from "@/lib/espagnol";
 
-export type StudentTab = "home" | "work" | "timetable";
+export type StudentTab = "home" | "work" | "timetable" | "messages";
 
 const minutes = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
 

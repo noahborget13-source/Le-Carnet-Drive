@@ -4,13 +4,14 @@ import { useCallback, useEffect, useState } from "react";
 import { getEs, mondayOf, weekKindOf, type ClassRow, type Profile } from "@/lib/espagnol";
 import NotebookMark from "../NotebookMark";
 import CahierSaisie from "./CahierSaisie";
+import Communication from "./Communication";
 import Home from "./Home";
 import Recap from "./Recap";
 import Library from "./Library";
 import TeacherClass from "./TeacherClass";
 import Timetable from "./Timetable";
 
-type Tab = "home" | "timetable" | "classes" | "library";
+type Tab = "home" | "timetable" | "classes" | "comm" | "library";
 
 const SUBS: Record<Tab, { id: string; label: string }[]> = {
   home: [],
@@ -20,12 +21,14 @@ const SUBS: Record<Tab, { id: string; label: string }[]> = {
     { id: "classes", label: "Classes et élèves" },
   ],
   timetable: [],
+  comm: [{ id: "info", label: "Information" }, { id: "mail", label: "Discussion" }],
   library: [],
 };
 
 const NAV: { id: Tab; label: string }[] = [
   { id: "classes", label: "Cahier de textes" },
   { id: "timetable", label: "Emploi du temps" },
+  { id: "comm", label: "Communication" },
   { id: "library", label: "Ressources" },
 ];
 
@@ -41,7 +44,7 @@ export default function Teacher({ profile, onSignOut }: { profile: Profile; onSi
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [subs, setSubs] = useState<Record<Tab, string>>({
-    home: "", timetable: "", classes: "saisie", library: "",
+    home: "", timetable: "", classes: "saisie", comm: "info", library: "",
   });
   const sub = subs[tab];
   const setSub = (id: string) => setSubs((cur) => ({ ...cur, [tab]: id }));
@@ -70,7 +73,7 @@ export default function Teacher({ profile, onSignOut }: { profile: Profile; onSi
 
   // Rafraîchit les noms des élèves quand on revient sur une page qui les utilise
   useEffect(() => {
-    if (tab === "classes" || tab === "home") load();
+    if (tab === "classes" || tab === "comm" || tab === "home") load();
   }, [tab, load]);
 
   async function newClass() {
@@ -135,6 +138,11 @@ export default function Teacher({ profile, onSignOut }: { profile: Profile; onSi
           <>
             <h1 className="pn-title">Page d&apos;accueil <span>Bonjour {profile.full_name.split(/\s+/)[0] || ""}</span></h1>
             <Home classes={classes} profiles={profiles} onGo={setTab} />
+          </>
+        ) : tab === "comm" ? (
+          <>
+            <h1 className="pn-title">Communication — {sub === "mail" ? "Discussion" : "Information"}</h1>
+            <Communication sub={sub === "mail" ? "mail" : "info"} classes={classes} profiles={profiles} />
           </>
         ) : tab === "timetable" ? (
           <>

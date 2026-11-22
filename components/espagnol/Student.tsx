@@ -19,11 +19,13 @@ import { safeName } from "@/lib/files";
 import NotebookMark from "../NotebookMark";
 import Attachments from "./Attachments";
 import StudentHome, { type StudentTab } from "./StudentHome";
+import StudentMessages from "./StudentMessages";
 import Timetable from "./Timetable";
 
 const NAV: { id: StudentTab; label: string; title: string }[] = [
   { id: "work", label: "Cahier de textes", title: "Cahier de textes" },
   { id: "timetable", label: "Emploi du temps", title: "Emploi du temps" },
+  { id: "messages", label: "Communication", title: "Informations et messagerie" },
 ];
 
 export default function Student({ userId, name, onSignOut }: { userId: string; name: string; onSignOut: () => void }) {
@@ -85,7 +87,7 @@ export default function Student({ userId, name, onSignOut }: { userId: string; n
           <p className="muted">Chargement…</p>
         ) : (
           <>
-            {tab === "work" && classes.length > 1 && (
+            {(tab === "work" || tab === "messages") && classes.length > 1 && (
               <div className="class-picker">
                 {classes.map((c) => (
                   <button key={c.id} className={c.id === selected ? "on" : ""} onClick={() => setSelected(c.id)}>
@@ -98,6 +100,8 @@ export default function Student({ userId, name, onSignOut }: { userId: string; n
               <StudentHome userId={userId} classes={classes} onGo={setTab} />
             ) : tab === "timetable" ? (
               <Timetable readOnly classes={classes} />
+            ) : tab === "messages" ? (
+              selected ? <StudentMessages key={selected} userId={userId} classId={selected} /> : <p className="muted empty">Tu n&apos;as pas encore de classe.</p>
             ) : selected ? (
               <Feed key={selected} userId={userId} classId={selected} />
             ) : (
