@@ -29,16 +29,15 @@ const SUBS: Record<Tab, { id: string; label: string }[]> = {
   library: [{ id: "res", label: "Ressources pédagogiques" }],
 };
 
-const NAV: { id: Tab; icon: string; label: string }[] = [
-  { id: "home", icon: "🏠", label: "Accueil" },
-  { id: "timetable", icon: "🗓", label: "Emploi du temps" },
-  { id: "classes", icon: "📒", label: "Cahier de textes" },
-  { id: "notes", icon: "📊", label: "Notes" },
-  { id: "skills", icon: "🎯", label: "Compétences" },
-  { id: "reports", icon: "📄", label: "Bulletins" },
-  { id: "life", icon: "✅", label: "Vie scolaire" },
-  { id: "comm", icon: "✉️", label: "Communication" },
-  { id: "library", icon: "📚", label: "Outils pédagogiques" },
+const NAV: { id: Tab; label: string }[] = [
+  { id: "library", label: "Outils pédagogiques" },
+  { id: "classes", label: "Cahier de textes" },
+  { id: "notes", label: "Notes" },
+  { id: "reports", label: "Bulletins" },
+  { id: "skills", label: "Compétences" },
+  { id: "life", label: "Vie scolaire" },
+  { id: "timetable", label: "Emploi du temps" },
+  { id: "comm", label: "Communication" },
 ];
 
 // Espace professeur : en-tête, onglets, pages (présentation inspirée de Pronote)
@@ -109,27 +108,28 @@ export default function Teacher({ profile, onSignOut }: { profile: Profile; onSi
   return (
     <div className="pn">
       <header className="pn-header">
-        <div className="pn-brand">
-          <NotebookMark size={26} />
-          <span>Cours d&apos;espagnol</span>
-          <span className="pn-role">Espace Professeur</span>
+        <div className="pn-logo"><NotebookMark size={34} /></div>
+        <div className="pn-center">
+          <div className="pn-school">COURS D&apos;ESPAGNOL</div>
+          <div className="pn-who">
+            Espace Professeurs - {(profile.full_name || profile.email).toUpperCase()}
+            <button className="pn-power" onClick={onSignOut} title="Déconnexion" aria-label="Déconnexion">⏻</button>
+          </div>
         </div>
-        <div className="pn-head-right">
-          <span className="pn-date">{dateLabel}</span>
-          <span className={`badge wk-${weekKind} pn-week`} title="Semaine Q1 / Q2">Semaine {weekKind.toUpperCase()}</span>
+        <div className="pn-brandmark">
           <a href="/">Drive</a>
-          <span className="pn-user">{profile.full_name || profile.email}</span>
-          <button onClick={onSignOut}>Déconnexion</button>
+          <strong>Le Carnet</strong>
         </div>
       </header>
 
       <nav className="pn-tabs" aria-label="Menu professeur">
+        <button className={`home${tab === "home" ? " on" : ""}`} onClick={() => setTab("home")} aria-label="Accueil" title="Accueil">🏠</button>
         {NAV.map((n) => (
-          <button key={n.id} className={tab === n.id ? "on" : ""} onClick={() => setTab(n.id)}>
-            <span className="ico" aria-hidden="true">{n.icon}</span>
-            <span>{n.label}</span>
-          </button>
+          <button key={n.id} className={tab === n.id ? "on" : ""} onClick={() => setTab(n.id)}>{n.label}</button>
         ))}
+        <span className="grow" />
+        <span className={`pn-wk wk-${weekKind}`} title="Semaine Q1 / Q2">Semaine {weekKind.toUpperCase()}</span>
+        <span className="pn-date">{dateLabel}</span>
       </nav>
 
       {SUBS[tab].length > 0 && (
@@ -151,7 +151,7 @@ export default function Teacher({ profile, onSignOut }: { profile: Profile; onSi
           <p className="muted">Chargement…</p>
         ) : tab === "home" ? (
           <>
-            <h1 className="pn-title">Bonjour {profile.full_name.split(/\s+/)[0] || ""} 👋</h1>
+            <h1 className="pn-title">Page d&apos;accueil <span>Bonjour {profile.full_name.split(/\s+/)[0] || ""}</span></h1>
             <Home classes={classes} profiles={profiles} onOpenAppel={openAppel} onGo={setTab} />
           </>
         ) : tab === "timetable" ? (

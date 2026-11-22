@@ -584,3 +584,53 @@ td.note-cell.lvl-3 { background: #dff3e6 !important; } td.note-cell.lvl-4 { back
   .pn-header, .pn-tabs, .pn-sub, .notes-bar, .pn-title { display: none !important; }
   .pn { background: #fff; }
 }
+
+/* ───────── DA Pronote (d'après les captures) : bandeau blanc, barre grise foncée, barre de titre grise, cartes vertes ───────── */
+.pn { background: #fff; --pn-green: #1f6b57; --pn-mint: #d6efe7; --pn-purple: #7a3f9d; --pn-bar: #404040; --pn-grey: #dfe3e6; }
+.pn-header { background: #fff; color: #1d2b25; display: grid; grid-template-columns: 90px 1fr 140px; align-items: center; padding: 6px 16px; border-bottom: none; }
+.pn-center { text-align: center; line-height: 1.25; }
+.pn-school { font-weight: 700; font-size: 1.15rem; letter-spacing: 0.01em; }
+.pn-who { font-size: 1rem; font-weight: 600; color: #333; }
+.pn-header .pn-power { background: transparent; border: none; color: var(--pn-green); font-size: 1.1rem; padding: 0 6px; }
+.pn-header .pn-power:hover { background: transparent; color: #0a3d2f; border: none; }
+.pn-brandmark { justify-self: end; text-align: right; display: flex; flex-direction: column; font-size: 0.8rem; }
+.pn-brandmark strong { color: var(--pn-green); font-size: 1.2rem; }
+.pn-brandmark a { color: #667; text-decoration: none; }
+.pn-tabs { background: var(--pn-bar); padding: 0 8px; gap: 0; align-items: stretch; }
+.pn-tabs button { color: #fff; font-weight: 700; font-size: 14px; padding: 14px 14px; border-radius: 0; background: transparent; border-bottom: 4px solid transparent; }
+.pn-tabs button:hover { background: #565656; color: #fff; }
+.pn-tabs button.on { background: #565656; color: #fff; border-bottom-color: #4cc09a; }
+.pn-tabs button.home { font-size: 1.3rem; padding: 8px 14px; }
+.pn-tabs .pn-wk { align-self: center; background: #fff; color: var(--pn-bar); font-weight: 700; border-radius: 10px; padding: 2px 10px; font-size: 12px; margin-right: 10px; }
+.pn-tabs .pn-date { align-self: center; color: #d9d9d9; font-size: 12px; text-transform: capitalize; padding-right: 8px; }
+.pn-sub { background: var(--pn-grey); border-bottom: none; padding: 0 8px; }
+.pn-sub button { color: #222; font-weight: 700; font-size: 14px; border-radius: 0; padding: 9px 12px 6px; border-bottom: 3px solid transparent; }
+.pn-sub button:hover { background: #cfd5d9; color: #222; }
+.pn-sub button.on { background: transparent; color: #222; border-bottom-color: var(--pn-purple); }
+.pn-page { max-width: none; padding: 0 0 50px; }
+.pn-title { background: var(--pn-grey); color: var(--pn-green); font-size: 14px; font-weight: 700; margin: 0 0 14px; padding: 6px 12px; border-radius: 0; border-top: 1px solid #fff; }
+.pn-title span { color: #333; font-weight: 400; margin-left: 12px; font-size: 12px; }
+.pn-page > :not(.pn-title):not(.error) { margin-left: 16px; margin-right: 16px; }
+.pn-page > .pn-title + .pn-sub { margin: 0; }
+/* cartes de l'accueil */
+.pn .widget { border: none; border-radius: 14px; box-shadow: 0 1px 6px rgba(0, 0, 0, 0.14); padding: 14px 16px 16px; position: relative; }
+.pn .widget h3 { text-align: center; color: var(--pn-green); font-size: 1.05rem; margin: 6px 0 12px; }
+.pn .widget .count { background: var(--pn-green); }
+.pn .widget a, .pn .widget button.link { color: var(--pn-green); }
+/* listes de gauche, cartes, panneaux */
+.pn .pn-list { border-radius: 8px; border: 1px solid #cfd5d9; }
+.pn .pn-list h3, .pn .appel-side h3 { background: var(--pn-green); }
+.pn .pn-list button.on { background: var(--pn-mint); color: #0b3b2e; }
+.pn .card { border-radius: 10px; border: 1px solid #dfe3e6; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08); }
+.pn button.primary { background: var(--pn-green); border-color: var(--pn-green); }
+.pn button.primary:hover { background: #17503f; border-color: #17503f; }
+.pn .class-picker button.on, .pn .tabs button.on { background: var(--pn-green); border-color: var(--pn-green); color: #fff; }
+/* grilles : en-tête soulignée en violet, colonne des noms grisée */
+.pn .appel-table thead th, .pn .notes-table thead th { background: #fff; color: #333; border-bottom: 2px solid var(--pn-purple); }
+.pn .appel-table td:first-child, .pn .appel-table th:first-child { background: #e8ebed; }
+.pn .appel-table tbody td:first-child { background: #e8ebed; }
+.pn .tg-corner, .pn .tg-head { background: var(--pn-green); }
+.pn .tg-head.today { background: #2f9e7e; }
+.pn .appel-side h3 { text-transform: none; }
+.pn input:focus, .pn select:focus, .pn textarea:focus { outline: 2px solid #4cc09a; outline-offset: 0; }
+@media (max-width: 860px) { .pn-header { grid-template-columns: 1fr; } .pn-brandmark, .pn-logo { display: none; } }
