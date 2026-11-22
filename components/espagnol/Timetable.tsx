@@ -114,7 +114,7 @@ export default function Timetable({ classes, userId, readOnly, picker, selectedK
         <button onClick={() => setWeek(addDays(week, 7))} aria-label="Semaine suivante">→</button>
         <button onClick={() => setWeek(mondayOf(new Date()))}>Aujourd&apos;hui</button>
         <span className={`badge wk-${kind}`} title="Semaine Q1 / Q2">{kind.toUpperCase()}</span>
-        {userId && !readOnly && (
+        {userId && !readOnly && !picker && (
           <label className="inline small">
             Cette semaine est
             <select value={kind} onChange={(e) => setThisWeekKind(e.target.value as "q1" | "q2")} aria-label="Cette semaine est Q1 ou Q2">
@@ -153,15 +153,6 @@ export default function Timetable({ classes, userId, readOnly, picker, selectedK
                 {active.slot.room ? ` · salle ${active.slot.room}` : ""}
               </span>
               <span className="grow" />
-              <button
-                className="primary"
-                onClick={() => {
-                  const t = targetOf(active.slot, active.date);
-                  if (t) onSelect?.(t);
-                }}
-              >
-                Faire l&apos;appel
-              </button>
               <button className="danger" onClick={() => removeSlot(active.slot).then(() => setActive(null))}>
                 Supprimer le créneau
               </button>

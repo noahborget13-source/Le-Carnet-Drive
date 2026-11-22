@@ -64,7 +64,6 @@ export function StudentLife() {
     <div>
       <div className="stats">
         <div className="card stat"><strong>{absences.length}</strong><span className="muted small">absence{absences.length > 1 ? "s" : ""}</span></div>
-        <div className="card stat"><strong>{absences.filter((a) => !a.excused).length}</strong><span className="muted small">non justifiée{absences.filter((a) => !a.excused).length > 1 ? "s" : ""}</span></div>
         <div className="card stat"><strong>{lates.length}</strong><span className="muted small">retard{lates.length > 1 ? "s" : ""}</span></div>
         <div className="card stat"><strong>{remarks.length}</strong><span className="muted small">observation{remarks.length > 1 ? "s" : ""}</span></div>
       </div>
@@ -87,9 +86,7 @@ export function StudentLife() {
                 {a.excluded && <span className="badge att-absent">Exclu(e) du cours</span>}{" "}
                 {a.exempt && <span className="badge">Dispensé(e)</span>}{" "}
                 {a.es_sessions ? `${formatShortDay(a.es_sessions.date)} · ${hhmm(a.es_sessions.start_time)}` : ""}
-                {a.reason ? ` · ${a.reason}` : ""}
               </span>
-              <span className="muted small">{a.status === "present" ? "" : a.excused ? "Justifié" : "Non justifié"}</span>
             </li>
           ))}
         </ul>

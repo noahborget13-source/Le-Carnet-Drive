@@ -398,7 +398,7 @@ export default function AppelSheet({
                             )}
                           </td>
                         </tr>
-                        {a.status !== "present" && (
+                        {a.status === "late" && (
                           <tr className="detail">
                             <td colSpan={12}>
                               <div className="appel-detail">
@@ -417,19 +417,6 @@ export default function AppelSheet({
                                     min
                                   </label>
                                 )}
-                                <button
-                                  type="button"
-                                  className={`chip${a.excused ? " on" : ""}`}
-                                  onClick={() => writeRow(r.id, { ...a, excused: !a.excused })}
-                                >
-                                  {a.excused ? "Justifié" : "Non justifié"}
-                                </button>
-                                <input
-                                  type="text"
-                                  placeholder="Motif (facultatif)"
-                                  defaultValue={a.reason}
-                                  onBlur={(e) => e.target.value !== a.reason && writeRow(r.id, { ...a, reason: e.target.value })}
-                                />
                               </div>
                             </td>
                           </tr>

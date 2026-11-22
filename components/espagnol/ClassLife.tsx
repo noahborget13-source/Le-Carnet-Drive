@@ -119,7 +119,6 @@ export default function ClassLife({
               <tr>
                 <th>Élève</th>
                 <th>Absences</th>
-                <th>dont non justifiées</th>
                 <th>Retards</th>
                 <th>Participation</th>
                 <th>Observations</th>
@@ -130,7 +129,6 @@ export default function ClassLife({
                 <tr key={r.id} className={r.id === selected ? "sel" : ""} onClick={() => setSelected(r.id === selected ? null : r.id)}>
                   <td><button className="link">{r.name}</button></td>
                   <td>{r.absences}</td>
-                  <td className={r.unexcused > 0 ? "warn" : ""}>{r.unexcused}</td>
                   <td>{r.lates}</td>
                   <td>
                     {r.ratings.length === 0
@@ -165,8 +163,6 @@ export default function ClassLife({
                         {a.status === "late" && a.late_minutes ? ` ${a.late_minutes} min` : ""}
                       </span>{" "}
                       {s ? `${formatShortDay(s.date)} ${hhmm(s.start_time)}` : ""}{" "}
-                      {a.excused ? <em>· justifié</em> : <strong>· non justifié</strong>}
-                      {a.reason ? ` · ${a.reason}` : ""}
                     </li>
                   );
                 })}

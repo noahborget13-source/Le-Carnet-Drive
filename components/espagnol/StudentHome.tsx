@@ -199,7 +199,7 @@ export default function StudentHome({
           ) : (
             att.slice(0, 3).map((a, i) => (
               <p key={i} className="carnet">
-                <strong>{a.status === "absent" ? (a.excused ? "Absence justifiée" : "Absence non justifiée") : "Retard"}</strong>
+                <strong>{a.status === "absent" ? "Absence" : "Retard"}</strong>
                 <br />
                 {a.es_sessions ? `le ${formatShortDay(a.es_sessions.date)} à ${hhmm(a.es_sessions.start_time)}` : ""}
               </p>

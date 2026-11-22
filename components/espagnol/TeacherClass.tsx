@@ -29,7 +29,6 @@ import {
 import Attachments from "./Attachments";
 import FilePicker from "./FilePicker";
 import StudentsPanel from "./StudentsPanel";
-import ClassLife from "./ClassLife";
 
 type Props = {
   userId: string;
@@ -49,7 +48,7 @@ export default function TeacherClass({ userId, cls, profiles, onDeleted, onProfi
   const [doneRows, setDoneRows] = useState<{ post_id: string; student_id: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<"posts" | "students" | "life">("posts");
+  const [tab, setTab] = useState<"posts" | "students">("posts");
 
   const load = useCallback(async () => {
     const [p, m, k] = await Promise.all([
@@ -90,6 +89,8 @@ export default function TeacherClass({ userId, cls, profiles, onDeleted, onProfi
     load();
   }, [load]);
 
+  const homework = posts.filter((p) => p.kind === "todo" || p.kind === "assignment");
+
   async function onStudentsChanged() {
     onProfilesChanged();
     await load();
@@ -117,18 +118,15 @@ export default function TeacherClass({ userId, cls, profiles, onDeleted, onProfi
       </div>
 
       <div className="tabs sub">
-        <button className={tab === "posts" ? "on" : ""} onClick={() => setTab("posts")}>Publications</button>
+        <button className={tab === "posts" ? "on" : ""} onClick={() => setTab("posts")}>Suivi des travaux</button>
         <button className={tab === "students" ? "on" : ""} onClick={() => setTab("students")}>
           Élèves ({members.length})
         </button>
-        <button className={tab === "life" ? "on" : ""} onClick={() => setTab("life")}>Vie scolaire</button>
       </div>
 
       {error && <p className="error">{error}</p>}
 
-      {tab === "life" ? (
-        <ClassLife cls={cls} members={members} profiles={profiles} onOpenAppel={onOpenAppel} />
-      ) : tab === "students" ? (
+      {tab === "students" ? (
         <StudentsPanel
           classId={cls.id}
           className={cls.name}
@@ -139,14 +137,13 @@ export default function TeacherClass({ userId, cls, profiles, onDeleted, onProfi
         />
       ) : (
         <>
-          <Composer userId={userId} classId={cls.id} onCreated={load} />
           {loading ? (
             <p className="muted">Chargement…</p>
-          ) : posts.length === 0 ? (
-            <p className="muted empty">Rien de publié pour l&apos;instant.</p>
+          ) : homework.length === 0 ? (
+            <p className="muted empty">Aucun travail donné pour l&apos;instant. Saisis-en depuis « Cahier de textes » → Saisie.</p>
           ) : (
             <div className="posts">
-              {posts.map((p) => (
+              {homework.map((p) => (
                 <PostCard
                   key={p.id}
                   userId={userId}
@@ -439,38 +436,8 @@ function PostCard({
 }) {
   const es = getEs();
   const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const files = postFiles(post);
-
-  async function togglePublished() {
-    const { error } = await es.from("es_posts").update({ published: !post.published }).eq("id", post.id);
-    if (error) setError(error.message);
-    else onChanged();
-  }
-
-  async function remove() {
-    if (!window.confirm(`Supprimer « ${post.title} » ?${post.kind === "assignment" ? " Les rendus des élèves seront aussi supprimés." : ""}`)) return;
-    const paths = subs.flatMap((s) => s.es_submission_files.map((f) => f.path));
-    if (paths.length) await es.storage.from("espagnol").remove(paths);
-    const { error } = await es.from("es_posts").delete().eq("id", post.id);
-    if (error) setError(error.message);
-    else onChanged();
-  }
-
-  if (editing)
-    return (
-      <Composer
-        userId={userId}
-        classId={post.class_id}
-        post={post}
-        onCancel={() => setEditing(false)}
-        onCreated={() => {
-          setEditing(false);
-          onChanged();
-        }}
-      />
-    );
 
   return (
     <article className={`card post kind-${post.kind}${post.published ? "" : " draft"}`}>
@@ -500,9 +467,6 @@ function PostCard({
             {open ? "Masquer" : "Voir"} les rendus ({subs.length}/{studentCount})
           </button>
         )}
-        <button onClick={() => setEditing(true)}>✏️ Modifier</button>
-        <button onClick={togglePublished}>{post.published ? "Masquer aux élèves" : "Publier"}</button>
-        <button className="danger" onClick={remove}>Supprimer</button>
       </div>
       {open && post.kind === "todo" && (
         <div className="subs">
