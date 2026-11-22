@@ -16,16 +16,28 @@ import {
   type Submission,
 } from "@/lib/espagnol";
 import { safeName } from "@/lib/files";
+import NotebookMark from "../NotebookMark";
 import Attachments from "./Attachments";
+import StudentHome, { type StudentTab } from "./StudentHome";
 import { StudentBulletins, StudentCompetences, StudentLife, StudentMessages, StudentNotes, StudentTimetable } from "./StudentLife";
 
-export default function Student({ userId, name }: { userId: string; name: string }) {
+const NAV: { id: StudentTab; label: string; title: string }[] = [
+  { id: "work", label: "Cahier de textes", title: "Cahier de textes" },
+  { id: "notes", label: "Notes", title: "Notes" },
+  { id: "skills", label: "Compétences", title: "Compétences" },
+  { id: "reports", label: "Bulletins", title: "Bulletins" },
+  { id: "life", label: "Vie scolaire", title: "Vie scolaire" },
+  { id: "timetable", label: "Emploi du temps", title: "Emploi du temps" },
+  { id: "messages", label: "Communication", title: "Informations, sondages et discussions" },
+];
+
+export default function Student({ userId, name, onSignOut }: { userId: string; name: string; onSignOut: () => void }) {
   const es = getEs();
   const [classes, setClasses] = useState<ClassRow[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<"work" | "timetable" | "notes" | "skills" | "reports" | "messages" | "life">("work");
+  const [tab, setTab] = useState<StudentTab>("home");
 
   const load = useCallback(async () => {
     const { data, error } = await es.from("es_classes").select("id,name,code,created_at").order("created_at");
@@ -42,50 +54,69 @@ export default function Student({ userId, name }: { userId: string; name: string
     load();
   }, [load]);
 
-  if (loading) return <p className="muted">Chargement…</p>;
-
-  const first = name.trim().split(/\s+/)[0];
+  const title = tab === "home" ? "Page d'accueil" : (NAV.find((n) => n.id === tab)?.title ?? "");
+  const dateLabel = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
   return (
-    <>
-      <h2 className="hello">Hola{first ? `, ${first}` : ""} 👋</h2>
-      <div className="tabs">
-        <button className={tab === "work" ? "on" : ""} onClick={() => setTab("work")}>📝 Travail</button>
-        <button className={tab === "timetable" ? "on" : ""} onClick={() => setTab("timetable")}>🗓 Emploi du temps</button>
-        <button className={tab === "notes" ? "on" : ""} onClick={() => setTab("notes")}>📊 Notes</button>
-        <button className={tab === "skills" ? "on" : ""} onClick={() => setTab("skills")}>🎯 Compétences</button>
-        <button className={tab === "reports" ? "on" : ""} onClick={() => setTab("reports")}>📄 Bulletins</button>
-        <button className={tab === "messages" ? "on" : ""} onClick={() => setTab("messages")}>✉️ Messages</button>
-        <button className={tab === "life" ? "on" : ""} onClick={() => setTab("life")}>🧾 Vie scolaire</button>
-      </div>
-      {(tab === "work" || tab === "messages") && classes.length > 1 && (
-        <div className="class-picker">
-          {classes.map((c) => (
-            <button key={c.id} className={c.id === selected ? "on" : ""} onClick={() => setSelected(c.id)}>
-              {c.name}
-            </button>
-          ))}
+    <div className="pn student-pn">
+      <header className="pn-header">
+        <div className="pn-logo"><NotebookMark size={34} /></div>
+        <div className="pn-center">
+          <div className="pn-school">COURS D&apos;ESPAGNOL</div>
+          <div className="pn-who">
+            Espace Élèves - {name.toUpperCase()}
+            <button className="pn-power" onClick={onSignOut} title="Déconnexion" aria-label="Déconnexion">⏻</button>
+          </div>
         </div>
-      )}
-      {error && <p className="error">{error}</p>}
-      {tab === "timetable" ? (
-        <StudentTimetable classes={classes} />
-      ) : tab === "skills" ? (
-        <StudentCompetences />
-      ) : tab === "reports" ? (
-        <StudentBulletins />
-      ) : tab === "messages" ? (
-        selected ? <StudentMessages key={selected} userId={userId} classId={selected} /> : <p className="muted empty">Tu n&apos;as pas encore de classe.</p>
-      ) : tab === "notes" ? (
-        <StudentNotes />
-      ) : tab === "life" ? (
-        <StudentLife />
-      ) : selected ? (
-        <Feed key={selected} userId={userId} classId={selected} />
-      ) : (
-        <p className="muted empty">Tu n&apos;as pas encore de classe. Demande à ton professeur.</p>
-      )}
-    </>
+        <div className="pn-brandmark"><strong>Le Carnet</strong></div>
+      </header>
+      <nav className="pn-tabs" aria-label="Menu élève">
+        <button className={`home${tab === "home" ? " on" : ""}`} onClick={() => setTab("home")} aria-label="Accueil" title="Accueil">🏠</button>
+        {NAV.map((n) => (
+          <button key={n.id} className={tab === n.id ? "on" : ""} onClick={() => setTab(n.id)}>{n.label}</button>
+        ))}
+        <span className="grow" />
+        <span className="pn-date">{dateLabel}</span>
+      </nav>
+      <main className="pn-page">
+        <h1 className="pn-title">{title}</h1>
+        {error && <p className="error">{error}</p>}
+        {loading ? (
+          <p className="muted">Chargement…</p>
+        ) : (
+          <>
+            {(tab === "work" || tab === "messages") && classes.length > 1 && (
+              <div className="class-picker">
+                {classes.map((c) => (
+                  <button key={c.id} className={c.id === selected ? "on" : ""} onClick={() => setSelected(c.id)}>
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            )}
+            {tab === "home" ? (
+              <StudentHome userId={userId} classes={classes} onGo={setTab} />
+            ) : tab === "timetable" ? (
+              <StudentTimetable classes={classes} />
+            ) : tab === "skills" ? (
+              <StudentCompetences />
+            ) : tab === "reports" ? (
+              <StudentBulletins />
+            ) : tab === "messages" ? (
+              selected ? <StudentMessages key={selected} userId={userId} classId={selected} /> : <p className="muted empty">Tu n&apos;as pas encore de classe.</p>
+            ) : tab === "notes" ? (
+              <StudentNotes />
+            ) : tab === "life" ? (
+              <StudentLife />
+            ) : selected ? (
+              <Feed key={selected} userId={userId} classId={selected} />
+            ) : (
+              <p className="muted empty">Tu n&apos;as pas encore de classe. Demande à ton professeur.</p>
+            )}
+          </>
+        )}
+      </main>
+    </div>
   );
 }
 

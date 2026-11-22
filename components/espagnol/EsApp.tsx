@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { getEs, type Profile } from "@/lib/espagnol";
-import NotebookMark from "../NotebookMark";
 import EsAuth from "./EsAuth";
 import Teacher from "./Teacher";
 import Student from "./Student";
@@ -54,24 +53,19 @@ export default function EsApp() {
     return <Teacher profile={profile} onSignOut={() => getEs().auth.signOut()} />;
   }
 
+  if (profile) {
+    return <Student userId={profile.id} name={profile.full_name} onSignOut={() => getEs().auth.signOut()} />;
+  }
+
   return (
     <main className="drive">
-      <header className="topbar">
-        <div className="brand">
-          <NotebookMark size={24} />
-          <span>Cours d&apos;espagnol</span>
-          {profile && <span className="badge role student">Élève</span>}
-        </div>
-        <div className="who">
-          <span className="muted">{profile?.full_name}</span>
+      {error ? (
+        <>
+          <p className="error">{error}</p>
           <button onClick={() => getEs().auth.signOut()}>Déconnexion</button>
-        </div>
-      </header>
-      {error && <p className="error">{error}</p>}
-      {!profile ? (
-        !error && <p className="muted">Chargement…</p>
+        </>
       ) : (
-        <Student userId={profile.id} name={profile.full_name} />
+        <p className="muted">Chargement…</p>
       )}
     </main>
   );
