@@ -42,7 +42,7 @@ export default function AppelSheet({
   const [remarks, setRemarks] = useState<Remark[]>([]);
   const [part, setPart] = useState<Map<string, number>>(new Map());
   const [topic, setTopic] = useState("");
-  const [open, setOpen] = useState<string | null>(null);
+  const [dialog, setDialog] = useState<{ studentId: string; kind: RemarkKind } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -87,7 +87,7 @@ export default function AppelSheet({
   useEffect(() => {
     setLoading(true);
     setError(null);
-    setOpen(null);
+    setDialog(null);
     load();
   }, [load]);
 
@@ -204,26 +204,6 @@ export default function AppelSheet({
     } else onSaved();
   }
 
-  async function toggleCheckRemark(id: string, kind: RemarkKind, checked: boolean) {
-    const sess = await ensureSession();
-    if (!sess) return;
-    const { error } = checked
-      ? await es.from("es_remarks").insert({
-          class_id: cls.id,
-          session_id: sess.id,
-          student_id: id,
-          kind,
-          body: REMARK_LABEL[kind],
-          visible_to_student: true,
-        })
-      : await es.from("es_remarks").delete().eq("session_id", sess.id).eq("student_id", id).eq("kind", kind);
-    if (error) setError(error.message);
-    else {
-      await load();
-      onSaved();
-    }
-  }
-
   async function addTextRemark(id: string, kind: RemarkKind, body: string, visible: boolean): Promise<void> {
     const sess = await ensureSession();
     if (!sess) return;
@@ -328,10 +308,10 @@ export default function AppelSheet({
           </p>
 
           {rows.length === 0 ? (
-            <p className="muted empty">Aucun élève dans cette classe. Ajoute-les dans « Cahier de textes » → Élèves.</p>
+            <p className="muted empty">Aucun élève dans cette classe. Ajoute-les dans « Cahier de textes » → Classes et élèves.</p>
           ) : (
             <div className="table-wrap">
-              <table className="appel-table">
+              <table className="appel-table tap-table">
                 <thead>
                   <tr>
                     <th className="left">Élève</th>
@@ -352,58 +332,50 @@ export default function AppelSheet({
                   {rows.map((r) => {
                     const a = rowOf(r.id);
                     const mine = remarks.filter((x) => x.student_id === r.id);
-                    const textRemarks = mine.filter((x) => !CHECK_KINDS.includes(x.kind));
                     const countOf = (k: RemarkKind) => mine.filter((x) => x.kind === k).length;
-                    const showDetail = a.status !== "present" || open === r.id || textRemarks.length > 0;
                     return (
                       <Fragment key={r.id}>
                         <tr className={`st-${a.status}`}>
                           <td className="left who-name">{r.name}</td>
-                          <td>
-                            <input
-                              type="checkbox"
-                              aria-label={`${r.name} absent`}
-                              checked={a.status === "absent"}
-                              onChange={(e) => setStatus(r.id, "absent", e.target.checked)}
-                            />
+                          <td
+                            className={`tap${a.status === "absent" ? " on abs" : ""}`}
+                            onClick={() => setStatus(r.id, "absent", a.status !== "absent")}
+                            role="button"
+                            aria-pressed={a.status === "absent"}
+                            aria-label={`${r.name} absent`}
+                          >
+                            {a.status === "absent" ? "Absent" : ""}
                           </td>
-                          <td>
-                            <input
-                              type="checkbox"
-                              aria-label={`${r.name} en retard`}
-                              checked={a.status === "late"}
-                              onChange={(e) => setStatus(r.id, "late", e.target.checked)}
-                            />
+                          <td
+                            className={`tap${a.status === "late" ? " on late" : ""}`}
+                            onClick={() => setStatus(r.id, "late", a.status !== "late")}
+                            role="button"
+                            aria-pressed={a.status === "late"}
+                            aria-label={`${r.name} en retard`}
+                          >
+                            {a.status === "late" ? `${a.late_minutes ?? 5} min` : ""}
                           </td>
                           {(["infirmary", "excluded", "exempt"] as FlagKey[]).map((k) => (
-                            <td key={k}>
-                              <input
-                                type="checkbox"
-                                aria-label={`${r.name} ${k}`}
-                                checked={a[k]}
-                                onChange={(e) => setFlag(r.id, k, e.target.checked)}
-                              />
+                            <td
+                              key={k}
+                              className={`tap${a[k] ? " on flag" : ""}`}
+                              onClick={() => setFlag(r.id, k, !a[k])}
+                              role="button"
+                              aria-pressed={a[k]}
+                              aria-label={`${r.name} ${k}`}
+                            >
+                              {a[k] ? "✔" : ""}
                             </td>
                           ))}
-                          {CHECK_KINDS.map((k) => (
-                            <td key={k}>
-                              <input
-                                type="checkbox"
-                                aria-label={`${r.name} ${REMARK_LABEL[k]}`}
-                                checked={countOf(k) > 0}
-                                onChange={(e) => toggleCheckRemark(r.id, k, e.target.checked)}
-                              />
-                            </td>
-                          ))}
-                          {(["encouragement", "observation", "punishment"] as RemarkKind[]).map((k) => (
-                            <td key={k}>
-                              <button
-                                className={`mini remark-btn${countOf(k) > 0 ? " has" : ""}`}
-                                onClick={() => setOpen(open === r.id + k ? null : r.id + k)}
-                                aria-label={`${REMARK_LABEL[k]} pour ${r.name}`}
-                              >
-                                {countOf(k) > 0 ? countOf(k) : "+"}
-                              </button>
+                          {(["material", "homework", "encouragement", "observation", "punishment"] as RemarkKind[]).map((k) => (
+                            <td
+                              key={k}
+                              className={`tap${countOf(k) > 0 ? " on rem" : ""}`}
+                              onClick={() => setDialog({ studentId: r.id, kind: k })}
+                              role="button"
+                              aria-label={`${REMARK_LABEL[k]} pour ${r.name}`}
+                            >
+                              {countOf(k) > 0 ? countOf(k) : ""}
                             </td>
                           ))}
                           <td>
@@ -426,60 +398,39 @@ export default function AppelSheet({
                             )}
                           </td>
                         </tr>
-                        {(showDetail || open?.startsWith(r.id)) && (
+                        {a.status !== "present" && (
                           <tr className="detail">
                             <td colSpan={12}>
-                              {a.status !== "present" && (
-                                <div className="appel-detail">
-                                  {a.status === "late" && (
-                                    <label className="inline">
-                                      Retard de
-                                      <input
-                                        type="number"
-                                        min={1}
-                                        max={600}
-                                        value={a.late_minutes ?? 5}
-                                        onChange={(e) =>
-                                          writeRow(r.id, { ...a, late_minutes: Math.max(1, Number(e.target.value) || 1) })
-                                        }
-                                      />
-                                      min
-                                    </label>
-                                  )}
-                                  <label className="check">
+                              <div className="appel-detail">
+                                {a.status === "late" && (
+                                  <label className="inline">
+                                    Retard de
                                     <input
-                                      type="checkbox"
-                                      checked={a.excused}
-                                      onChange={(e) => writeRow(r.id, { ...a, excused: e.target.checked })}
+                                      type="number"
+                                      min={1}
+                                      max={600}
+                                      value={a.late_minutes ?? 5}
+                                      onChange={(e) =>
+                                        writeRow(r.id, { ...a, late_minutes: Math.max(1, Number(e.target.value) || 1) })
+                                      }
                                     />
-                                    Justifié
+                                    min
                                   </label>
-                                  <input
-                                    type="text"
-                                    placeholder="Motif (facultatif)"
-                                    defaultValue={a.reason}
-                                    onBlur={(e) => e.target.value !== a.reason && writeRow(r.id, { ...a, reason: e.target.value })}
-                                  />
-                                </div>
-                              )}
-                              {textRemarks.map((x) => (
-                                <p key={x.id} className="remark small">
-                                  <span className={`badge remark-${x.kind}`}>{REMARK_LABEL[x.kind]}</span> {x.body}
-                                  {!x.visible_to_student && <span className="muted"> (privé)</span>}{" "}
-                                  <button className="link" onClick={() => deleteRemark(x.id)}>Supprimer</button>
-                                </p>
-                              ))}
-                              {open?.startsWith(r.id) && (
-                                <RemarkForm
-                                  key={open}
-                                  initialKind={(open.slice(r.id.length) as RemarkKind) || "observation"}
-                                  onAdd={async (kind, body, visible) => {
-                                    await addTextRemark(r.id, kind, body, visible);
-                                    setOpen(null);
-                                  }}
-                                  onCancel={() => setOpen(null)}
+                                )}
+                                <button
+                                  type="button"
+                                  className={`chip${a.excused ? " on" : ""}`}
+                                  onClick={() => writeRow(r.id, { ...a, excused: !a.excused })}
+                                >
+                                  {a.excused ? "Justifié" : "Non justifié"}
+                                </button>
+                                <input
+                                  type="text"
+                                  placeholder="Motif (facultatif)"
+                                  defaultValue={a.reason}
+                                  onBlur={(e) => e.target.value !== a.reason && writeRow(r.id, { ...a, reason: e.target.value })}
                                 />
-                              )}
+                              </div>
                             </td>
                           </tr>
                         )}
@@ -490,8 +441,84 @@ export default function AppelSheet({
               </table>
             </div>
           )}
+          <p className="muted small">Touche une case pour la cocher ou la décocher. Pour les oublis, travaux non faits et observations, une fenêtre s&apos;ouvre pour écrire.</p>
         </>
       )}
+      {dialog && (
+        <RemarkDialog
+          title={`${REMARK_LABEL[dialog.kind]} — ${rows.find((x) => x.id === dialog.studentId)?.name ?? ""}`}
+          kind={dialog.kind}
+          existing={remarks.filter((x) => x.student_id === dialog.studentId && x.kind === dialog.kind)}
+          onAdd={async (body, visible) => {
+            await addTextRemark(dialog.studentId, dialog.kind, body || REMARK_LABEL[dialog.kind], visible);
+          }}
+          onDelete={deleteRemark}
+          onClose={() => setDialog(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// Boîte de dialogue : saisie libre d'un oubli, travail non fait, observation…
+function RemarkDialog({
+  title,
+  kind,
+  existing,
+  onAdd,
+  onDelete,
+  onClose,
+}: {
+  title: string;
+  kind: RemarkKind;
+  existing: Remark[];
+  onAdd: (body: string, visible: boolean) => Promise<void>;
+  onDelete: (id: string) => void;
+  onClose: () => void;
+}) {
+  const [body, setBody] = useState("");
+  const [visible, setVisible] = useState(true);
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    await onAdd(body.trim(), visible);
+    setBusy(false);
+    setBody("");
+  }
+
+  return (
+    <div className="modal-back" onClick={onClose}>
+      <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={submit} role="dialog" aria-label={title}>
+        <h3>{title}</h3>
+        {existing.length > 0 && (
+          <ul className="plain">
+            {existing.map((x) => (
+              <li key={x.id} className="small">
+                {x.body}
+                {!x.visible_to_student && <span className="muted"> (privé)</span>}{" "}
+                <button type="button" className="link" onClick={() => onDelete(x.id)}>Supprimer</button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <textarea
+          autoFocus
+          rows={4}
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder={kind === "material" || kind === "homework" ? "Précision (facultatif)…" : "Écris ici…"}
+        />
+        <label className="check small">
+          <input type="checkbox" checked={visible} onChange={(e) => setVisible(e.target.checked)} />
+          Visible par l&apos;élève
+        </label>
+        <div className="row end">
+          <button type="button" onClick={onClose}>Fermer</button>
+          <button className="primary" disabled={busy || (!body.trim() && kind !== "material" && kind !== "homework")}>Ajouter</button>
+        </div>
+      </form>
     </div>
   );
 }

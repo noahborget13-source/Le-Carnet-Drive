@@ -669,3 +669,17 @@ td.note-cell.lvl-3 { background: #dff3e6 !important; } td.note-cell.lvl-4 { back
 
 .cahier-sheet { display: flex; flex-direction: column; gap: 10px; }
 .part-title { margin: 14px 0 4px; padding: 6px 12px; background: #dfe3e6; color: #1f6b57; font-size: 14px; border-radius: 0; }
+
+/* appel : cases tactiles (pas de cases à cocher) */
+.tap-table td.tap { cursor: pointer; user-select: none; min-width: 62px; height: 38px; font-size: 12px; font-weight: 700; }
+.tap-table td.tap:hover { background: #dbeee6 !important; }
+.tap-table td.tap.on.abs { background: #f6c9cb !important; color: #8f1d22; }
+.tap-table td.tap.on.late { background: #fbe0b8 !important; color: #7a4a00; }
+.tap-table td.tap.on.flag { background: #cfe8fb !important; color: #0a4c80; font-size: 15px; }
+.tap-table td.tap.on.rem { background: #e6d9f2 !important; color: #5a2a82; font-size: 14px; }
+.chip { border-radius: 14px; padding: 3px 12px; }
+.chip.on { background: #cfeee0; border-color: #4cc09a; color: #1d6b40; }
+.modal-back { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.4); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 16px; }
+.modal { background: #fff; border-radius: 10px; padding: 16px 18px; width: min(480px, 100%); display: flex; flex-direction: column; gap: 10px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); }
+.modal h3 { margin: 0; color: #1f6b57; font-size: 1rem; }
+.modal textarea { width: 100%; resize: vertical; }
