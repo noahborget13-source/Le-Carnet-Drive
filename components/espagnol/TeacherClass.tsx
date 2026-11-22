@@ -171,26 +171,30 @@ export default function TeacherClass({ userId, cls, profiles, onDeleted, onProfi
 
 const sessionKey = (x: { date: string; start_time: string } | null) => (x ? `${x.date}T${hhmm(x.start_time)}` : "");
 
-function Composer({
+export function Composer({
   userId,
   classId,
   post,
+  lesson,
+  section,
   onCreated,
   onCancel,
 }: {
   userId: string;
   classId: string;
   post?: Post; // en modification d'une publication existante
+  lesson?: Lesson; // cours fixé (saisie depuis l'emploi du temps)
+  section?: "content" | "homework";
   onCreated: () => void;
   onCancel?: () => void;
 }) {
   const es = getEs();
   const editing = !!post;
-  const [kind, setKind] = useState<PostKind>(post?.kind ?? "resource");
+  const [kind, setKind] = useState<PostKind>(post?.kind ?? (section === "homework" ? "todo" : "resource"));
   const [title, setTitle] = useState(post?.title ?? "");
   const [body, setBody] = useState(post?.body ?? "");
   const [lessons, setLessons] = useState<Lesson[]>([]);
-  const [givenKey, setGivenKey] = useState(sessionKey(post?.given ?? null));
+  const [givenKey, setGivenKey] = useState(sessionKey(post?.given ?? null) || lesson?.key || "");
   const [dueKey, setDueKey] = useState(sessionKey(post?.due ?? null));
   const [published, setPublished] = useState(post?.published ?? true);
   const [attached, setAttached] = useState<EsFile[]>(post ? postFiles(post) : []);
@@ -206,6 +210,15 @@ function Composer({
       es.from("es_settings").select("q1_monday").limit(1).maybeSingle(),
     ]).then(([s, st]) => {
       if (s.error) return setError(s.error.message);
+      if (lesson && !post) {
+        const from = new Date(`${lesson.date}T12:00:00`);
+        const ls = lessonsFor((s.data ?? []) as Slot[], classId, (st.data as { q1_monday: string } | null)?.q1_monday ?? null, from, addDays(from, 60));
+        if (!ls.some((l) => l.key === lesson.key)) ls.unshift(lesson);
+        setLessons(ls);
+        setGivenKey(lesson.key);
+        setDueKey(ls.find((l) => l.key > lesson.key)?.key ?? "");
+        return;
+      }
       const now = new Date();
       const list = lessonsFor(
         (s.data ?? []) as Slot[],
@@ -234,7 +247,7 @@ function Composer({
         setDueKey(list.find((l) => l.key > given.key)?.key ?? "");
       }
     });
-  }, [es, classId, post]);
+  }, [es, classId, post, lesson?.key]);
 
   const hasDue = kind === "assignment" || kind === "todo";
   const dueOptions = lessons.filter((l) => !givenKey || l.key > givenKey);
@@ -314,18 +327,21 @@ function Composer({
 
   return (
     <form className="card composer" onSubmit={submit}>
+      {section !== "content" && (
+        <div className="row">
+          <label>
+            Type
+            <select value={kind} disabled={editing} onChange={(e) => setKind(e.target.value as PostKind)}>
+              {section !== "homework" && <option value="resource">Ressource / contenu de cours</option>}
+              <option value="todo">Travail à faire (rien à rendre)</option>
+              <option value="assignment">Travail à rendre (les élèves déposent leur rendu)</option>
+              {section !== "homework" && <option value="announcement">Annonce</option>}
+            </select>
+          </label>
+        </div>
+      )}
       <div className="row">
-        <label>
-          Type
-          <select value={kind} disabled={editing} onChange={(e) => setKind(e.target.value as PostKind)}>
-            <option value="resource">Ressource / contenu de cours</option>
-            <option value="todo">Travail à faire (rien à rendre)</option>
-            <option value="assignment">Travail à rendre (les élèves déposent leur rendu)</option>
-            <option value="announcement">Annonce</option>
-          </select>
-        </label>
-      </div>
-      <div className="row">
+        {!lesson && (
         <label>
           {hasDue ? "Donné au cours du" : "Cours concerné"}
           <select
@@ -342,6 +358,7 @@ function Composer({
             ))}
           </select>
         </label>
+        )}
         {hasDue && (
           <label>
             {kind === "todo" ? "À faire pour le cours du" : "À rendre pour le cours du"}
@@ -381,7 +398,7 @@ function Composer({
           Visible tout de suite par les élèves
         </label>
         {onCancel && <button type="button" onClick={onCancel}>Annuler</button>}
-        <button className="primary" disabled={busy !== null}>{busy ?? (editing ? "Enregistrer" : "Publier")}</button>
+        <button className="primary" disabled={busy !== null}>{busy ?? (editing ? "Enregistrer" : section === "content" ? "Ajouter le contenu" : section === "homework" ? "Ajouter le travail" : "Publier")}</button>
       </div>
       {error && <p className="error">{error}</p>}
 

@@ -380,7 +380,7 @@ export async function ensureLessonSession(classId: string, l: Lesson): Promise<s
   if (found.data) return (found.data as { id: string }).id;
   const ins = await es
     .from("es_sessions")
-    .insert({ class_id: classId, date: l.date, start_time: l.start, end_time: l.end, room: l.room, slot_id: l.slotId })
+    .insert({ class_id: classId, date: l.date, start_time: l.start, end_time: l.end, room: l.room, slot_id: l.slotId || null })
     .select("id")
     .single();
   if (ins.data) return (ins.data as { id: string }).id;

@@ -5,6 +5,7 @@ import { getEs, mondayOf, weekKindOf, type AppelTarget, type ClassRow, type Prof
 import NotebookMark from "../NotebookMark";
 import AppelPage from "./AppelPage";
 import Bilan from "./Bilan";
+import CahierSaisie from "./CahierSaisie";
 import Bulletins from "./Bulletins";
 import Communication from "./Communication";
 import Competences from "./Competences";
@@ -20,7 +21,7 @@ type Tab = "home" | "timetable" | "classes" | "notes" | "skills" | "reports" | "
 const SUBS: Record<Tab, { id: string; label: string }[]> = {
   home: [],
   timetable: [{ id: "week", label: "Emploi du temps" }],
-  classes: [{ id: "saisie", label: "Saisie" }, { id: "recap", label: "Récapitulatif" }],
+  classes: [{ id: "saisie", label: "Saisie" }, { id: "recap", label: "Récapitulatif" }, { id: "classes", label: "Classes et élèves" }],
   notes: [{ id: "saisie", label: "Saisie des notes" }],
   skills: [{ id: "eval", label: "Évaluations" }],
   reports: [{ id: "app", label: "Saisie des appréciations" }],
@@ -190,9 +191,11 @@ export default function Teacher({ profile, onSignOut }: { profile: Profile; onSi
           </>
         ) : (
           <>
-            <h1 className="pn-title">Cahier de textes — {sub === "recap" ? "Récapitulatif" : "Saisie"}</h1>
+            <h1 className="pn-title">Cahier de textes — {sub === "recap" ? "Récapitulatif" : sub === "classes" ? "Classes, élèves et rendus" : "Saisie"}</h1>
             {sub === "recap" ? (
               <Recap classes={classes} />
+            ) : sub === "saisie" ? (
+              <CahierSaisie classes={classes} userId={userId} />
             ) : (
             <div className="pn-split">
               <aside className="pn-list">

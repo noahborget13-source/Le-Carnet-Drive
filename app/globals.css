@@ -666,3 +666,6 @@ td.note-cell.lvl-3 { background: #dff3e6 !important; } td.note-cell.lvl-4 { back
 .grade-pill { background: #cfeee0; padding: 4px 12px; border-radius: 3px; font-weight: 700; min-width: 70px; text-align: right; }
 .grade-pill small { font-weight: 400; color: #555; }
 .hidden { display: none; }
+
+.cahier-sheet { display: flex; flex-direction: column; gap: 10px; }
+.part-title { margin: 14px 0 4px; padding: 6px 12px; background: #dfe3e6; color: #1f6b57; font-size: 14px; border-radius: 0; }
