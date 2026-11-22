@@ -701,3 +701,81 @@ td.note-cell.lvl-3 { background: #dff3e6 !important; } td.note-cell.lvl-4 { back
 .login-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; vertical-align: -1px; box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.08); }
 .login-dot.on { background: #2fb36d; }
 .login-dot.off { background: #e5484d; }
+
+/* ───────── Mobile ───────── */
+@media (max-width: 700px) {
+  .pn, .drive { -webkit-text-size-adjust: 100%; }
+  .pn input, .pn select, .pn textarea { font-size: 16px; } /* évite le zoom automatique d'iOS */
+  .pn button, .pn select { min-height: 40px; }
+  .pn-header { grid-template-columns: 1fr; padding: 8px 12px; }
+  .pn-school { font-size: 1rem; }
+  .pn-who { font-size: 0.82rem; }
+  .pn-header .pn-power { min-height: 32px; font-size: 1.2rem; }
+  .pn-logo, .pn-brandmark { display: none; }
+
+  /* onglets : défilement horizontal au doigt */
+  .pn-tabs, .pn-sub { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .pn-tabs::-webkit-scrollbar, .pn-sub::-webkit-scrollbar { display: none; }
+  .pn-tabs button { padding: 12px 12px; font-size: 13.5px; white-space: nowrap; flex: 0 0 auto; }
+  .pn-tabs button.home { padding: 6px 12px; }
+  .pn-tabs .grow, .pn-tabs .pn-date, .pn-tabs .pn-wk { display: none; }
+  .pn-sub button { padding: 10px 12px 7px; flex: 0 0 auto; }
+
+  .pn-page { padding-bottom: calc(40px + env(safe-area-inset-bottom)); }
+  .pn-page > :not(.pn-title):not(.error) { margin-left: 10px; margin-right: 10px; }
+  .pn-title { font-size: 13.5px; margin-bottom: 10px; }
+  .pn-title span { display: block; margin: 2px 0 0; }
+
+  /* listes de classes : puces défilantes */
+  .pn-split { gap: 10px; }
+  .pn-list { display: flex; flex-direction: row; overflow-x: auto; gap: 6px; padding: 8px; }
+  .pn-list h3 { display: none; }
+  .pn-list button { flex: 0 0 auto; white-space: nowrap; width: auto; }
+
+  /* formulaires */
+  .card.composer { padding: 12px; }
+  .composer .row { flex-direction: column; gap: 10px; }
+  .composer .row > label { min-width: 0; width: 100%; flex: none; }
+  .composer .row.end { flex-direction: row; flex-wrap: wrap; gap: 8px; }
+  .composer .row.end button { flex: 1 1 auto; }
+
+  /* cahier de textes : emploi du temps au-dessus, saisie dessous */
+  .appel-page { grid-template-columns: 1fr; gap: 12px; }
+  .appel-side { position: static; max-height: none; }
+  .appel-side .tt { overflow-x: auto; }
+  .tg.compact .tg-slot { font-size: 0.66rem; }
+  .part-title { font-size: 13.5px; }
+  .appel-title h2 { font-size: 1.05rem; }
+
+  /* publications, élèves, listes */
+  .card.post header { flex-wrap: wrap; gap: 6px; }
+  .post-actions { flex-wrap: wrap; gap: 8px; }
+  .post-actions button { flex: 1 1 auto; }
+  .list.simple.students li { grid-template-columns: 1fr; gap: 6px; }
+  .list.simple.students .actions { display: flex; flex-wrap: wrap; gap: 6px; }
+  .list.simple.students .actions button { flex: 1 1 auto; }
+  .list.simple.students .code { font-size: 1.05rem; letter-spacing: 0.08em; }
+  .table-wrap { max-height: none; -webkit-overflow-scrolling: touch; }
+  .tg { min-width: 560px; }
+  .tg.compact { min-width: 0; }
+  .week-nav { flex-wrap: wrap; gap: 8px; }
+
+  /* accueil */
+  .sh-grid { padding: 0 10px; gap: 22px; }
+  .widget { padding: 12px 12px 14px; }
+  .home { grid-template-columns: 1fr; }
+  .wlist li { flex-wrap: wrap; }
+  .day-nav .round { width: 36px; height: 36px; }
+  .wi-check { padding: 6px 0; }
+  .wi-check input { width: 22px; height: 22px; }
+
+  /* messagerie */
+  .bubble { max-width: 92%; }
+  .bubbles { max-height: 55vh; }
+  .inline-form { flex-direction: column; }
+  .inline-form button { width: 100%; }
+  .pn-split.mail .pn-list { flex-wrap: nowrap; }
+
+  .modal-back { align-items: flex-end; padding: 0; }
+  .modal { width: 100%; border-radius: 14px 14px 0 0; padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
+}
