@@ -19,7 +19,7 @@ import { safeName } from "@/lib/files";
 import NotebookMark from "../NotebookMark";
 import Attachments from "./Attachments";
 import StudentHome, { type StudentTab } from "./StudentHome";
-import StudentMessages from "./StudentMessages";
+import { StudentMessages } from "./StudentMessages";
 import Timetable from "./Timetable";
 
 const NAV: { id: StudentTab; label: string; title: string }[] = [
