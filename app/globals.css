@@ -779,3 +779,6 @@ td.note-cell.lvl-3 { background: #dff3e6 !important; } td.note-cell.lvl-4 { back
   .modal-back { align-items: flex-end; padding: 0; }
   .modal { width: 100%; border-radius: 14px 14px 0 0; padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
 }
+
+.badge.shared { background: #cfeee0; color: #1d6b40; margin-left: 8px; font-size: 11px; }
+.modal .check { display: flex; flex-direction: row; align-items: center; gap: 8px; font-size: 14px; }

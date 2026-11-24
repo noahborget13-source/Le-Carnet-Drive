@@ -20,10 +20,12 @@ import NotebookMark from "../NotebookMark";
 import Attachments from "./Attachments";
 import StudentHome, { type StudentTab } from "./StudentHome";
 import { StudentMessages } from "./StudentMessages";
+import StudentResources from "./StudentResources";
 import Timetable from "./Timetable";
 
 const NAV: { id: StudentTab; label: string; title: string }[] = [
   { id: "work", label: "Cahier de textes", title: "Cahier de textes" },
+  { id: "resources", label: "Ressources", title: "Ressources partagées par ton professeur" },
   { id: "timetable", label: "Emploi du temps", title: "Emploi du temps" },
   { id: "messages", label: "Communication", title: "Informations et messagerie" },
 ];
@@ -100,6 +102,8 @@ export default function Student({ userId, name, onSignOut }: { userId: string; n
               <StudentHome userId={userId} classes={classes} onGo={setTab} />
             ) : tab === "timetable" ? (
               <Timetable readOnly classes={classes} />
+            ) : tab === "resources" ? (
+              <StudentResources classes={classes} />
             ) : tab === "messages" ? (
               selected ? <StudentMessages key={selected} userId={userId} classId={selected} /> : <p className="muted empty">Tu n&apos;as pas encore de classe.</p>
             ) : selected ? (
