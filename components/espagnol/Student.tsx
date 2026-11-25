@@ -38,7 +38,7 @@ export default function Student({ userId, name, onSignOut }: { userId: string; n
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<StudentTab>("home");
-  const tabArea: Area | null = tab === "work" ? "work" : tab === "resources" ? "resources" : tab === "messages" ? "messages" : null;
+  const tabArea: Area[] = tab === "work" || tab === "resources" || tab === "messages" ? [tab] : [];
   const { counts } = useBadges(userId, "student", tabArea);
   const badgeOf = (id: string) => (id === "work" ? counts.work : id === "resources" ? counts.resources : id === "messages" ? counts.messages : 0);
 

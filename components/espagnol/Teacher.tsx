@@ -38,9 +38,6 @@ export default function Teacher({ profile, onSignOut }: { profile: Profile; onSi
   const userId = profile.id;
   const es = getEs();
   const [tab, setTab] = useState<Tab>("home");
-  const tabArea: Area | null = tab === "classes" ? "work" : tab === "comm" ? "messages" : null;
-  const { counts } = useBadges(userId, "teacher", tabArea);
-  const badgeOf = (id: string) => (id === "classes" ? counts.work : id === "comm" ? counts.messages : 0);
   const [classes, setClasses] = useState<ClassRow[]>([]);
   const [profiles, setProfiles] = useState<Map<string, Profile>>(new Map());
   const [selected, setSelected] = useState<string | null>(null);
@@ -51,6 +48,9 @@ export default function Teacher({ profile, onSignOut }: { profile: Profile; onSi
     home: "", timetable: "", classes: "saisie", comm: "info", library: "",
   });
   const sub = subs[tab];
+  const active: Area[] = tab === "classes" ? (sub === "classes" ? ["work", "logins"] : ["work"]) : tab === "comm" ? ["messages"] : [];
+  const { counts } = useBadges(userId, "teacher", active);
+  const badgeOf = (id: string) => (id === "classes" ? counts.work + counts.logins : id === "comm" ? counts.messages : 0);
   const setSub = (id: string) => setSubs((cur) => ({ ...cur, [tab]: id }));
 
   const load = useCallback(async () => {
@@ -124,7 +124,7 @@ export default function Teacher({ profile, onSignOut }: { profile: Profile; onSi
       {SUBS[tab].length > 0 && (
         <nav className="pn-sub" aria-label="Sous-menu">
           {SUBS[tab].map((x) => (
-            <button key={x.id} className={sub === x.id ? "on" : ""} onClick={() => setSub(x.id)}>{x.label}</button>
+            <button key={x.id} className={sub === x.id ? "on" : ""} onClick={() => setSub(x.id)}>{x.label}{tab === "classes" && x.id === "classes" && counts.logins > 0 && <span className="nbadge">{counts.logins}</span>}</button>
           ))}
         </nav>
       )}

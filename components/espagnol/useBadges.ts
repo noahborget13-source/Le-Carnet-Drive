@@ -3,24 +3,24 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getEs } from "@/lib/espagnol";
 
-export type Area = "work" | "resources" | "messages";
+export type Area = "work" | "resources" | "messages" | "logins";
 export type BadgeCounts = Record<Area, number>;
-const ZERO: BadgeCounts = { work: 0, resources: 0, messages: 0 };
+const ZERO: BadgeCounts = { work: 0, resources: 0, messages: 0, logins: 0 };
 
 /** Pastilles de notification : compte ce qui est nouveau depuis la dernière visite de chaque zone. */
-export function useBadges(userId: string, role: "teacher" | "student", active: Area | null) {
+export function useBadges(userId: string, role: "teacher" | "student", active: Area[]) {
   const [counts, setCounts] = useState<BadgeCounts>(ZERO);
   const seen = useRef<Partial<Record<Area, string>>>({});
-  const activeRef = useRef<Area | null>(active);
+  const activeRef = useRef<Area[]>(active);
   activeRef.current = active;
 
-  const areas: Area[] = role === "teacher" ? ["work", "messages"] : ["work", "resources", "messages"];
+  const areas: Area[] = role === "teacher" ? ["work", "logins", "messages"] : ["work", "resources", "messages"];
 
   const refresh = useCallback(async () => {
     const es = getEs();
     const next: BadgeCounts = { ...ZERO };
     for (const a of areas) {
-      if (activeRef.current === a) continue;
+      if (activeRef.current.includes(a)) continue;
       const since = seen.current[a];
       if (!since) continue;
       let q;
@@ -28,6 +28,8 @@ export function useBadges(userId: string, role: "teacher" | "student", active: A
         q = role === "teacher"
           ? es.from("es_submissions").select("id", { count: "exact", head: true }).gt("submitted_at", since)
           : es.from("es_posts").select("id", { count: "exact", head: true }).gt("created_at", since);
+      } else if (a === "logins") {
+        q = es.from("es_profiles").select("id", { count: "exact", head: true }).eq("role", "student").gt("first_login_at", since);
       } else if (a === "resources") {
         q = es.from("es_file_shares").select("file_id", { count: "exact", head: true }).gt("created_at", since);
       } else {
@@ -69,14 +71,14 @@ export function useBadges(userId: string, role: "teacher" | "student", active: A
   }, [userId, role]);
 
   // Entrer dans une zone (ou la quitter) la marque comme vue
-  const prev = useRef<Area | null>(null);
+  const prev = useRef<Area[]>([]);
+  const key = active.join(",");
   useEffect(() => {
-    const p = prev.current;
-    if (p && p !== active && seen.current[p]) void markSeen(p);
-    if (active && seen.current[active]) void markSeen(active);
+    for (const p of prev.current) if (!active.includes(p) && seen.current[p]) void markSeen(p);
+    for (const a of active) if (seen.current[a]) void markSeen(a);
     prev.current = active;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active]);
+  }, [key]);
 
   return { counts };
 }
