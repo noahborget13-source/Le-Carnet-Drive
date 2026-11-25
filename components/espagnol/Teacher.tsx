@@ -10,6 +10,7 @@ import Recap from "./Recap";
 import Library from "./Library";
 import TeacherClass from "./TeacherClass";
 import Timetable from "./Timetable";
+import { useBadges, type Area } from "./useBadges";
 
 type Tab = "home" | "timetable" | "classes" | "comm" | "library";
 
@@ -37,6 +38,9 @@ export default function Teacher({ profile, onSignOut }: { profile: Profile; onSi
   const userId = profile.id;
   const es = getEs();
   const [tab, setTab] = useState<Tab>("home");
+  const tabArea: Area | null = tab === "classes" ? "work" : tab === "comm" ? "messages" : null;
+  const { counts } = useBadges(userId, "teacher", tabArea);
+  const badgeOf = (id: string) => (id === "classes" ? counts.work : id === "comm" ? counts.messages : 0);
   const [classes, setClasses] = useState<ClassRow[]>([]);
   const [profiles, setProfiles] = useState<Map<string, Profile>>(new Map());
   const [selected, setSelected] = useState<string | null>(null);
@@ -110,7 +114,7 @@ export default function Teacher({ profile, onSignOut }: { profile: Profile; onSi
       <nav className="pn-tabs" aria-label="Menu professeur">
         <button className={`home${tab === "home" ? " on" : ""}`} onClick={() => setTab("home")} aria-label="Accueil" title="Accueil">🏠</button>
         {NAV.map((n) => (
-          <button key={n.id} className={tab === n.id ? "on" : ""} onClick={() => setTab(n.id)}>{n.label}</button>
+          <button key={n.id} className={tab === n.id ? "on" : ""} onClick={() => setTab(n.id)}>{n.label}{badgeOf(n.id) > 0 && <span className="nbadge">{badgeOf(n.id)}</span>}</button>
         ))}
         <span className="grow" />
         <span className={`pn-wk wk-${weekKind}`} title="Semaine Q1 / Q2">Semaine {weekKind.toUpperCase()}</span>

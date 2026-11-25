@@ -782,3 +782,6 @@ td.note-cell.lvl-3 { background: #dff3e6 !important; } td.note-cell.lvl-4 { back
 
 .badge.shared { background: #cfeee0; color: #1d6b40; margin-left: 8px; font-size: 11px; }
 .modal .check { display: flex; flex-direction: row; align-items: center; gap: 8px; font-size: 14px; }
+
+/* Pastilles de notification */
+.nbadge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;margin-left:6px;border-radius:9px;background:#e5484d;color:#fff;font-size:11px;font-weight:700;line-height:1;vertical-align:middle}

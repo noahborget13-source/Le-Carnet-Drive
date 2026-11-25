@@ -22,6 +22,7 @@ import StudentHome, { type StudentTab } from "./StudentHome";
 import { StudentMessages } from "./StudentMessages";
 import StudentResources from "./StudentResources";
 import Timetable from "./Timetable";
+import { useBadges, type Area } from "./useBadges";
 
 const NAV: { id: StudentTab; label: string; title: string }[] = [
   { id: "work", label: "Cahier de textes", title: "Cahier de textes" },
@@ -37,6 +38,9 @@ export default function Student({ userId, name, onSignOut }: { userId: string; n
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<StudentTab>("home");
+  const tabArea: Area | null = tab === "work" ? "work" : tab === "resources" ? "resources" : tab === "messages" ? "messages" : null;
+  const { counts } = useBadges(userId, "student", tabArea);
+  const badgeOf = (id: string) => (id === "work" ? counts.work : id === "resources" ? counts.resources : id === "messages" ? counts.messages : 0);
 
   const load = useCallback(async () => {
     const { data, error } = await es.from("es_classes").select("id,name,code,created_at").order("created_at");
@@ -77,7 +81,7 @@ export default function Student({ userId, name, onSignOut }: { userId: string; n
       <nav className="pn-tabs" aria-label="Menu élève">
         <button className={`home${tab === "home" ? " on" : ""}`} onClick={() => setTab("home")} aria-label="Accueil" title="Accueil">🏠</button>
         {NAV.map((n) => (
-          <button key={n.id} className={tab === n.id ? "on" : ""} onClick={() => setTab(n.id)}>{n.label}</button>
+          <button key={n.id} className={tab === n.id ? "on" : ""} onClick={() => setTab(n.id)}>{n.label}{badgeOf(n.id) > 0 && <span className="nbadge">{badgeOf(n.id)}</span>}</button>
         ))}
         <span className="grow" />
         <span className="pn-date">{dateLabel}</span>
