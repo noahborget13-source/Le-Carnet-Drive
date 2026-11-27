@@ -1,18 +1,21 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { formatDateTime, getEs, type Message } from "@/lib/espagnol";
+import { formatDateTime, getEs, MESSAGE_SELECT, sendMessage, type Message } from "@/lib/espagnol";
+import Attachments from "./Attachments";
+import { AttachButton, PickedList } from "./PickFiles";
 
 // Informations de la classe et messagerie avec le professeur
 export function StudentMessages({ userId, classId }: { userId: string; classId: string }) {
   const es = getEs();
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState("");
+  const [picked, setPicked] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const { data, error } = await es.from("es_messages").select("*").eq("class_id", classId).order("created_at");
+    const { data, error } = await es.from("es_messages").select(MESSAGE_SELECT).eq("class_id", classId).order("created_at");
     if (error) setError(error.message);
     else setMessages((data ?? []) as Message[]);
   }, [es, classId]);
@@ -25,17 +28,15 @@ export function StudentMessages({ userId, classId }: { userId: string; classId: 
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
-    if (!text.trim()) return;
+    if (!text.trim() && picked.length === 0) return;
     setBusy(true);
-    const { error } = await es
-      .from("es_messages")
-      .insert({ class_id: classId, student_id: userId, sender_id: userId, body: text.trim() });
+    setError(null);
+    const err = await sendMessage({ class_id: classId, student_id: userId, sender_id: userId, body: text }, picked);
     setBusy(false);
-    if (error) setError(error.message);
-    else {
-      setText("");
-      await load();
-    }
+    if (err) setError(err);
+    setText("");
+    setPicked([]);
+    await load();
   }
 
   const infos = messages.filter((m) => m.student_id === null).slice().reverse();
@@ -54,7 +55,8 @@ export function StudentMessages({ userId, classId }: { userId: string; classId: 
               <span className="badge announcement">Information</span>
               <span className="muted small date">{formatDateTime(m.created_at)}</span>
             </header>
-            <p className="body">{m.body}</p>
+            {m.body && <p className="body">{m.body}</p>}
+            <Attachments files={m.es_message_files ?? []} />
           </article>
         ))
       )}
@@ -64,14 +66,17 @@ export function StudentMessages({ userId, classId }: { userId: string; classId: 
           {mine.length === 0 && <p className="muted small">Aucun message.</p>}
           {mine.map((m) => (
             <div key={m.id} className={`bubble ${m.sender_id === userId ? "me" : "them"}`}>
-              <p>{m.body}</p>
+              {m.body && <p>{m.body}</p>}
+              <Attachments files={m.es_message_files ?? []} />
               <span className="muted small">{formatDateTime(m.created_at)}</span>
             </div>
           ))}
         </div>
+        <PickedList files={picked} onRemove={(i) => setPicked((c) => c.filter((_, j) => j !== i))} />
         <form className="inline-form" onSubmit={send}>
+          <AttachButton onPick={(f) => setPicked((c) => [...c, ...f])} />
           <input type="text" value={text} placeholder="Écrire à mon professeur…" onChange={(e) => setText(e.target.value)} />
-          <button className="primary" disabled={busy || !text.trim()}>Envoyer</button>
+          <button className="primary" disabled={busy || (!text.trim() && picked.length === 0)}>Envoyer</button>
         </form>
       </div>
     </div>

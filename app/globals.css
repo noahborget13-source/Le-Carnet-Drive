@@ -785,3 +785,9 @@ td.note-cell.lvl-3 { background: #dff3e6 !important; } td.note-cell.lvl-4 { back
 
 /* Pastilles de notification */
 .nbadge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;margin-left:6px;border-radius:9px;background:#e5484d;color:#fff;font-size:11px;font-weight:700;line-height:1;vertical-align:middle}
+
+/* Pièces jointes des messages */
+.attach-btn{background:var(--surface,#fff);border:1px solid var(--border,#d6d9de);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:.9rem;white-space:nowrap}
+.attach.picked{margin:6px 0}
+.bubble .attach{margin:6px 0 2px}
+.bubble .chip{max-width:100%}

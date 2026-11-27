@@ -425,7 +425,56 @@ export type Period = "T1" | "T2" | "T3";
 export const PERIODS: Period[] = ["T1", "T2", "T3"];
 export const PERIOD_LABEL: Record<Period, string> = { T1: "Trimestre 1", T2: "Trimestre 2", T3: "Trimestre 3" };
 export type Report = { class_id: string; student_id: string; period: Period; comment: string; published: boolean };
-export type Message = { id: string; class_id: string; student_id: string | null; sender_id: string; body: string; created_at: string };
+export type MessageFile = { id: string; message_id: string; name: string; path: string; size: number; mime_type: string | null };
+export type Message = { id: string; class_id: string; student_id: string | null; sender_id: string; body: string; created_at: string; es_message_files?: MessageFile[] };
+export const MESSAGE_SELECT = "*, es_message_files(*)";
+
+// Envoie un message (texte et/ou pièces jointes). Renvoie un message d'erreur éventuel.
+export async function sendMessage(
+  m: { class_id: string; student_id: string | null; sender_id?: string; body: string },
+  files: File[]
+): Promise<string | null> {
+  const es = getEs();
+  const row: Record<string, unknown> = { class_id: m.class_id, student_id: m.student_id, body: m.body.trim() };
+  if (m.sender_id) row.sender_id = m.sender_id;
+  const ins = await es.from("es_messages").insert(row).select("id, sender_id").single();
+  if (ins.error || !ins.data) return ins.error?.message ?? "Envoi impossible.";
+  const errors: string[] = [];
+  for (const file of files) {
+    if (file.size > MAX_SIZE) {
+      errors.push(`${file.name} dépasse la limite de 50 Mo.`);
+      continue;
+    }
+    const path = `msg/${ins.data.sender_id}/${crypto.randomUUID()}-${safeName(file.name)}`;
+    const up = await es.storage
+      .from(ES_BUCKET)
+      .upload(path, file, { contentType: file.type || "application/octet-stream" });
+    if (up.error) {
+      errors.push(`${file.name} : ${up.error.message}`);
+      continue;
+    }
+    const f = await es.from("es_message_files").insert({
+      message_id: ins.data.id,
+      name: file.name,
+      path,
+      size: file.size,
+      mime_type: file.type || null,
+    });
+    if (f.error) {
+      await es.storage.from(ES_BUCKET).remove([path]);
+      errors.push(`${file.name} : ${f.error.message}`);
+    }
+  }
+  return errors.length ? errors.join(" · ") : null;
+}
+
+export async function deleteMessage(m: Message): Promise<string | null> {
+  const es = getEs();
+  const paths = (m.es_message_files ?? []).map((f) => f.path);
+  if (paths.length) await es.storage.from(ES_BUCKET).remove(paths);
+  const { error } = await es.from("es_messages").delete().eq("id", m.id);
+  return error?.message ?? null;
+}
 
 // Bornes approximatives des trimestres de l'année scolaire en cours
 export function periodRange(p: Period, today = new Date()): { from: string; to: string } {
