@@ -1,5 +1,6 @@
 "use client";
 
+import { useDialog } from "../Dialogs";
 import { useCallback, useEffect, useState } from "react";
 import {
   KIND_LABEL,
@@ -21,6 +22,7 @@ import Timetable from "./Timetable";
 // Saisie du cahier de textes façon Pronote : on choisit le cours dans l'emploi du temps (à gauche),
 // puis le contenu (en haut) et le travail à faire (en bas) s'ajoutent à droite
 export default function CahierSaisie({ classes, userId }: { classes: ClassRow[]; userId: string }) {
+  const dialog = useDialog();
   const es = getEs();
   const [target, setTarget] = useState<AppelTarget | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -56,7 +58,7 @@ export default function CahierSaisie({ classes, userId }: { classes: ClassRow[];
   }, [load]);
 
   async function remove(p: Post) {
-    if (!window.confirm(`Supprimer « ${p.title} » ?${p.kind === "assignment" ? " Les rendus des élèves seront aussi supprimés." : ""}`)) return;
+    if (!(await dialog.confirm({ title: "Supprimer cette publication ?", message: `« ${p.title} »${p.kind === "assignment" ? "\nLes rendus des élèves seront aussi supprimés." : ""}`, confirmLabel: "Supprimer" }))) return;
     const { error } = await es.from("es_posts").delete().eq("id", p.id);
     if (error) setError(error.message);
     else await load();

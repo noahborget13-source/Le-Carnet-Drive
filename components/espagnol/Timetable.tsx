@@ -1,5 +1,6 @@
 "use client";
 
+import { useDialog } from "../Dialogs";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   DAYS,
@@ -34,6 +35,7 @@ type Props = {
 
 // Emploi du temps : créneaux hebdomadaires (classe, salle), semaines Q1 / Q2, accès à l'appel
 export default function Timetable({ classes, userId, readOnly, picker, selectedKey, onSelect }: Props) {
+  const dialog = useDialog();
   const es = getEs();
   const [week, setWeek] = useState<Date>(() => mondayOf(new Date()));
   const [slots, setSlots] = useState<Slot[]>([]);
@@ -91,7 +93,7 @@ export default function Timetable({ classes, userId, readOnly, picker, selectedK
   }
 
   async function removeSlot(s: Slot) {
-    if (!window.confirm("Supprimer ce créneau de l'emploi du temps ? (les appels déjà faits sont conservés)")) return;
+    if (!(await dialog.confirm({ title: "Supprimer le créneau ?", message: "Il sera retiré de l'emploi du temps.", confirmLabel: "Supprimer" }))) return;
     const { error } = await es.from("es_slots").delete().eq("id", s.id);
     if (error) setError(error.message);
     else await load();

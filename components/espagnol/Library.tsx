@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ES_BUCKET, downloadFile, getEs, uploadToLibrary, type ClassRow, type EsFile, type Folder } from "@/lib/espagnol";
 import { KIND_ICON, formatDate, formatSize, kindOf } from "@/lib/files";
+import { useDialog } from "../Dialogs";
 import EsPreview from "./EsPreview";
 
 // Bibliothèque du prof : un vrai petit drive avec dossiers
 export default function Library({ userId }: { userId: string }) {
   const es = getEs();
+  const dialog = useDialog();
   const [folders, setFolders] = useState<Folder[]>([]);
   const [files, setFiles] = useState<EsFile[]>([]);
   const [current, setCurrent] = useState<string | null>(null);
@@ -21,6 +23,9 @@ export default function Library({ userId }: { userId: string }) {
   const [shares, setShares] = useState<Map<string, Set<string>>>(new Map());
   const [sharing, setSharing] = useState<{ title: string; fileIds: string[] } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [dragItem, setDragItem] = useState<{ type: "file" | "folder"; id: string } | null>(null);
+  const [overTarget, setOverTarget] = useState<string | null>(null); // id de dossier, ou "root"
+  const [moving, setMoving] = useState<{ type: "file" | "folder"; id: string; name: string } | null>(null);
 
   const load = useCallback(async () => {
     const [f, fi, c, sh] = await Promise.all([
@@ -111,7 +116,7 @@ export default function Library({ userId }: { userId: string }) {
   };
 
   async function newFolder() {
-    const name = window.prompt("Nom du nouveau dossier :")?.trim();
+    const name = await dialog.prompt({ title: "Nouveau dossier", message: "Nom du dossier", placeholder: "Ex. Séquence 1 — La famille", confirmLabel: "Créer" });
     if (!name) return;
     const { error } = await es.from("es_folders").insert({ name, parent_id: current });
     if (error) setError(error.message);
@@ -119,19 +124,18 @@ export default function Library({ userId }: { userId: string }) {
   }
 
   async function removeFolder(f: Folder) {
-    if (!window.confirm(`Supprimer le dossier « ${f.name} » ? (il doit être vide)`)) return;
+    if (!(await dialog.confirm({ title: "Supprimer le dossier ?", message: `« ${f.name} » sera supprimé. Il doit être vide.`, confirmLabel: "Supprimer" }))) return;
     const { error } = await es.from("es_folders").delete().eq("id", f.id);
     if (error) setError("Ce dossier n'est pas vide : supprime ou déplace son contenu d'abord.");
     else await load();
   }
 
   async function removeFile(f: EsFile) {
-    if (
-      !window.confirm(
-        `Supprimer « ${f.name} » ? Il disparaîtra aussi des publications où il est joint. Cette action est définitive.`
-      )
-    )
-      return;
+    if (!(await dialog.confirm({
+      title: "Supprimer le fichier ?",
+      message: `« ${f.name} »\nIl disparaîtra aussi des publications où il est joint. Cette action est définitive.`,
+      confirmLabel: "Supprimer",
+    }))) return;
     setError(null);
     const { error: stErr } = await es.storage.from(ES_BUCKET).remove([f.path]);
     if (stErr) return setError(stErr.message);
@@ -140,25 +144,72 @@ export default function Library({ userId }: { userId: string }) {
     setFiles((prev) => prev.filter((x) => x.id !== f.id));
   }
 
-  async function moveFile(f: EsFile) {
-    const options = [{ id: null as string | null, label: "Racine" }].concat(
-      folders.map((x) => ({ id: x.id, label: x.name }))
-    );
-    const list = options.map((o, i) => `${i}. ${o.label}`).join("\n");
-    const answer = window.prompt(`Déplacer « ${f.name} » vers (numéro) :\n${list}`);
-    if (answer === null) return;
-    const target = options[Number(answer)];
-    if (!target) return setError("Numéro de dossier invalide.");
-    const { error } = await es.from("es_files").update({ folder_id: target.id }).eq("id", f.id);
-    if (error) setError(error.message);
-    else await load();
+  // Un dossier ne peut pas être déplacé dans lui-même ni dans l'un de ses sous-dossiers
+  function isInside(folderId: string | null, ancestorId: string): boolean {
+    let id = folderId;
+    while (id) {
+      if (id === ancestorId) return true;
+      id = folders.find((x) => x.id === id)?.parent_id ?? null;
+    }
+    return false;
   }
+
+  async function moveItem(item: { type: "file" | "folder"; id: string }, target: string | null) {
+    setError(null);
+    if (item.type === "folder") {
+      const f = folders.find((x) => x.id === item.id);
+      if (!f || f.parent_id === target) return;
+      if (isInside(target, item.id)) return setError("Impossible de déplacer un dossier dans lui-même.");
+      const { error } = await es.from("es_folders").update({ parent_id: target }).eq("id", item.id);
+      if (error) return setError(error.message);
+    } else {
+      const f = files.find((x) => x.id === item.id);
+      if (!f || f.folder_id === target) return;
+      const { error } = await es.from("es_files").update({ folder_id: target }).eq("id", item.id);
+      if (error) return setError(error.message);
+    }
+    await load();
+  }
+
+  // Glisser-déposer : propriétés à poser sur un élément déplaçable / une cible
+  const dragProps = (type: "file" | "folder", id: string) => ({
+    draggable: true,
+    onDragStart: (e: React.DragEvent) => {
+      e.dataTransfer.setData("text/plain", id);
+      e.dataTransfer.effectAllowed = "move";
+      setDragItem({ type, id });
+    },
+    onDragEnd: () => {
+      setDragItem(null);
+      setOverTarget(null);
+    },
+  });
+  const dropProps = (target: string | null) => ({
+    onDragOver: (e: React.DragEvent) => {
+      if (!dragItem) return;
+      if (dragItem.type === "folder" && target && isInside(target, dragItem.id)) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      setOverTarget(target ?? "root");
+    },
+    onDragLeave: () => setOverTarget((cur) => (cur === (target ?? "root") ? null : cur)),
+    onDrop: (e: React.DragEvent) => {
+      if (!dragItem) return;
+      e.preventDefault();
+      const item = dragItem;
+      setDragItem(null);
+      setOverTarget(null);
+      void moveItem(item, target);
+    },
+  });
+  const parentOfCurrent = folders.find((x) => x.id === current)?.parent_id ?? null;
 
   return (
     <section>
       <div
         className={`dropzone${dragging ? " active" : ""}`}
         onDragOver={(e) => {
+          if (!e.dataTransfer.types.includes("Files")) return;
           e.preventDefault();
           setDragging(true);
         }}
@@ -166,7 +217,7 @@ export default function Library({ userId }: { userId: string }) {
         onDrop={(e) => {
           e.preventDefault();
           setDragging(false);
-          if (e.dataTransfer.files.length) upload(e.dataTransfer.files);
+          if (e.dataTransfer.files.length) void upload(e.dataTransfer.files);
         }}
       >
         <input ref={inputRef} type="file" multiple hidden onChange={(e) => e.target.files && upload(e.target.files)} />
@@ -191,11 +242,11 @@ export default function Library({ userId }: { userId: string }) {
       </div>
 
       <nav className="crumbs small">
-        <button className="link" onClick={() => setCurrent(null)}>Bibliothèque</button>
+        <button className={`link${overTarget === "root" ? " drop-over" : ""}`} onClick={() => setCurrent(null)} {...dropProps(null)}>Bibliothèque</button>
         {breadcrumb.map((f) => (
           <span key={f.id}>
             {" / "}
-            <button className="link" onClick={() => setCurrent(f.id)}>{f.name}</button>
+            <button className={`link${overTarget === f.id ? " drop-over" : ""}`} onClick={() => setCurrent(f.id)} {...dropProps(f.id)}>{f.name}</button>
           </span>
         ))}
       </nav>
@@ -206,8 +257,17 @@ export default function Library({ userId }: { userId: string }) {
         <p className="muted empty">{q ? "Aucun résultat." : "Ce dossier est vide."}</p>
       ) : (
         <ul className="list">
+          {current && !q && (
+            <li className={`up${overTarget === (parentOfCurrent ?? "root") ? " drop-over" : ""}`} {...dropProps(parentOfCurrent)}>
+              <button className="name" onClick={() => setCurrent(parentOfCurrent)}>
+                <span className="icon">↩</span>
+                <span className="text">Dossier parent</span>
+              </button>
+              {dragItem && <span className="meta muted small">Déposer ici pour sortir du dossier</span>}
+            </li>
+          )}
           {subFolders.map((f) => (
-            <li key={f.id}>
+            <li key={f.id} className={`${dragItem?.id === f.id ? "dragging" : ""}${overTarget === f.id ? " drop-over" : ""}`} {...dragProps("folder", f.id)} {...dropProps(f.id)}>
               <button className="name" onClick={() => { setCurrent(f.id); setQuery(""); }}>
                 <span className="icon">📁</span>
                 <span className="text">{f.name}</span>
@@ -215,12 +275,13 @@ export default function Library({ userId }: { userId: string }) {
               <span className="meta muted small">Dossier</span>
               <span className="actions">
                 <button onClick={() => setSharing({ title: `le dossier « ${f.name} »`, fileIds: filesInTree(f.id).map((x) => x.id) })} disabled={filesInTree(f.id).length === 0}>Partager</button>
+                <button onClick={() => setMoving({ type: "folder", id: f.id, name: f.name })}>Déplacer</button>
                 <button className="danger" onClick={() => removeFolder(f)}>Supprimer</button>
               </span>
             </li>
           ))}
           {here.map((f) => (
-            <li key={f.id}>
+            <li key={f.id} className={dragItem?.id === f.id ? "dragging" : ""} {...dragProps("file", f.id)}>
               <button className="name" onClick={() => setPreview(f)} title="Ouvrir l'aperçu">
                 <span className="icon">{KIND_ICON[kindOf(f)]}</span>
                 <span className="text">{f.name}</span>
@@ -231,7 +292,7 @@ export default function Library({ userId }: { userId: string }) {
                 <button onClick={() => setPreview(f)}>Aperçu</button>
                 <button onClick={() => downloadFile(f).then((m) => m && setError(m))}>Télécharger</button>
                 <button onClick={() => setSharing({ title: `« ${f.name} »`, fileIds: [f.id] })}>Partager</button>
-                <button onClick={() => moveFile(f)}>Déplacer</button>
+                <button onClick={() => setMoving({ type: "file", id: f.id, name: f.name })}>Déplacer</button>
                 <button className="danger" onClick={() => removeFile(f)}>Supprimer</button>
               </span>
             </li>
@@ -247,6 +308,21 @@ export default function Library({ userId }: { userId: string }) {
           shares={shares}
           onSave={(sel) => saveShares(sharing.fileIds, sel)}
           onClose={() => setSharing(null)}
+        />
+      )}
+
+      {moving && (
+        <MoveDialog
+          name={moving.name}
+          folders={folders}
+          from={moving.type === "file" ? (files.find((x) => x.id === moving.id)?.folder_id ?? null) : (folders.find((x) => x.id === moving.id)?.parent_id ?? null)}
+          blocked={(id) => moving.type === "folder" && isInside(id, moving.id)}
+          onPick={(target) => {
+            const m = moving;
+            setMoving(null);
+            void moveItem(m, target);
+          }}
+          onClose={() => setMoving(null)}
         />
       )}
 
@@ -278,8 +354,8 @@ function ShareDialog({
   const [busy, setBusy] = useState(false);
 
   return (
-    <div className="modal-back" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Partager avec les élèves">
+    <div className="dlg-back" onClick={onClose}>
+      <div className="dlg" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Partager avec les élèves">
         <h3>Partager {title} avec les élèves</h3>
         {fileIds.length > 1 && <p className="muted small">{fileIds.length} fichiers concernés.</p>}
         {classes.length === 0 ? (
@@ -304,7 +380,7 @@ function ShareDialog({
           ))
         )}
         <p className="muted small">Les classes cochées retrouvent le fichier dans leur onglet « Ressources ». Décocher une classe le retire pour elle.</p>
-        <div className="row end">
+        <div className="dlg-actions">
           <button type="button" onClick={onClose}>Annuler</button>
           <button
             className="primary"
@@ -316,6 +392,56 @@ function ShareDialog({
           >
             Enregistrer
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Choix du dossier de destination (alternative au glisser-déposer, utile sur mobile)
+function MoveDialog({
+  name,
+  folders,
+  from,
+  blocked,
+  onPick,
+  onClose,
+}: {
+  name: string;
+  folders: Folder[];
+  from: string | null;
+  blocked: (id: string) => boolean;
+  onPick: (target: string | null) => void;
+  onClose: () => void;
+}) {
+  const rows: { id: string | null; label: string; depth: number }[] = [{ id: null, label: "Bibliothèque (racine)", depth: 0 }];
+  const walk = (parent: string | null, depth: number) => {
+    for (const f of folders.filter((x) => x.parent_id === parent).sort((a, b) => a.name.localeCompare(b.name, "fr"))) {
+      rows.push({ id: f.id, label: f.name, depth });
+      walk(f.id, depth + 1);
+    }
+  };
+  walk(null, 1);
+  return (
+    <div className="dlg-back" onClick={onClose}>
+      <div className="dlg" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Déplacer">
+        <h3>Déplacer « {name} »</h3>
+        <p className="dlg-msg">Choisis le dossier de destination.</p>
+        <ul className="move-list">
+          {rows.map((r) => {
+            const disabled = r.id === from || (r.id !== null && blocked(r.id));
+            return (
+              <li key={r.id ?? "root"}>
+                <button disabled={disabled} style={{ paddingLeft: 12 + r.depth * 18 }} onClick={() => onPick(r.id)}>
+                  <span>{r.id === null ? "🗂️" : "📁"}</span> {r.label}
+                  {r.id === from && <span className="muted small"> · emplacement actuel</span>}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+        <div className="dlg-actions">
+          <button type="button" onClick={onClose}>Annuler</button>
         </div>
       </div>
     </div>

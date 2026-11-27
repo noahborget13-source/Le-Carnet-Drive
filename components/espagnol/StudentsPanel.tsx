@@ -1,5 +1,6 @@
 "use client";
 
+import { useDialog } from "../Dialogs";
 import { useState } from "react";
 import { callStudents, formatCode, type CreatedStudent, type Profile } from "@/lib/espagnol";
 
@@ -14,6 +15,7 @@ type Props = {
 
 // Gestion des élèves d'une classe : création de comptes (un code par élève), codes, suppression
 export default function StudentsPanel({ classId, className, members, profiles, codes, onChanged }: Props) {
+  const dialog = useDialog();
   const [names, setNames] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +52,7 @@ export default function StudentsPanel({ classId, className, members, profiles, c
   }
 
   async function regenerate(id: string, name: string) {
-    if (!window.confirm(`Générer un nouveau code pour ${name} ? L'ancien code ne fonctionnera plus.`)) return;
+    if (!(await dialog.confirm({ title: "Nouveau code ?", message: `Un nouveau code sera généré pour ${name}. L'ancien code ne fonctionnera plus.`, confirmLabel: "Générer", danger: false }))) return;
     setError(null);
     const { error } = await callStudents<{ code: string }>({ action: "regenerate", student_id: id });
     if (error) setError(error);
@@ -58,7 +60,7 @@ export default function StudentsPanel({ classId, className, members, profiles, c
   }
 
   async function remove(id: string, name: string) {
-    if (!window.confirm(`Supprimer le compte de ${name} ? Ses rendus seront supprimés. Cette action est définitive.`)) return;
+    if (!(await dialog.confirm({ title: "Supprimer le compte ?", message: `Le compte de ${name} et ses rendus seront supprimés définitivement.`, confirmLabel: "Supprimer" }))) return;
     setError(null);
     const { error } = await callStudents<{ ok: boolean }>({ action: "remove", student_id: id });
     if (error) setError(error);

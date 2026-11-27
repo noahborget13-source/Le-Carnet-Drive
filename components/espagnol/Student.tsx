@@ -1,5 +1,6 @@
 "use client";
 
+import { useDialog } from "../Dialogs";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ES_BUCKET,
@@ -262,6 +263,7 @@ function SubmitBox({
   sub: Submission | null;
   onChanged: () => void;
 }) {
+  const dialog = useDialog();
   const es = getEs();
   const [editing, setEditing] = useState(sub === null);
   const [body, setBody] = useState(sub?.body ?? "");
@@ -342,7 +344,7 @@ function SubmitBox({
   }
 
   async function withdraw() {
-    if (!sub || !window.confirm("Annuler ton rendu ? Ton texte et tes fichiers seront supprimés.")) return;
+    if (!sub || !(await dialog.confirm({ title: "Annuler ton rendu ?", message: "Ton texte et tes fichiers seront supprimés.", confirmLabel: "Annuler mon rendu", cancelLabel: "Garder" }))) return;
     const paths = sub.es_submission_files.map((f) => f.path);
     if (paths.length) await es.storage.from(ES_BUCKET).remove(paths);
     const { error } = await es.from("es_submissions").delete().eq("id", sub.id);

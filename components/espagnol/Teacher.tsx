@@ -1,5 +1,6 @@
 "use client";
 
+import { useDialog } from "../Dialogs";
 import { useCallback, useEffect, useState } from "react";
 import { getEs, mondayOf, weekKindOf, type ClassRow, type Profile } from "@/lib/espagnol";
 import NotebookMark from "../NotebookMark";
@@ -35,6 +36,7 @@ const NAV: { id: Tab; label: string }[] = [
 
 // Espace professeur : en-tête, onglets, pages (présentation inspirée de Pronote)
 export default function Teacher({ profile, onSignOut }: { profile: Profile; onSignOut: () => void }) {
+  const dialog = useDialog();
   const userId = profile.id;
   const es = getEs();
   const [tab, setTab] = useState<Tab>("home");
@@ -81,7 +83,7 @@ export default function Teacher({ profile, onSignOut }: { profile: Profile; onSi
   }, [tab, load]);
 
   async function newClass() {
-    const name = window.prompt("Nom de la classe (ex. 2nde B — Espagnol LV2) :")?.trim();
+    const name = await dialog.prompt({ title: "Nouvelle classe", message: "Nom de la classe", placeholder: "Ex. 2nde B — Espagnol LV2", confirmLabel: "Créer" });
     if (!name) return;
     const { data, error } = await es.from("es_classes").insert({ name }).select("id").single();
     if (error) return setError(error.message);

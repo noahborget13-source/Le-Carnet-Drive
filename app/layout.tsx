@@ -1,3 +1,4 @@
+import { DialogProvider } from "@/components/Dialogs";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
@@ -36,7 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      <body>{children}</body>
+      <body><DialogProvider>{children}</DialogProvider></body>
     </html>
   );
 }

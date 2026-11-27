@@ -1,5 +1,6 @@
 "use client";
 
+import { useDialog } from "@/components/Dialogs";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { BUCKET, getSupabase, type FileRow } from "@/lib/supabase";
@@ -12,6 +13,7 @@ import { CARNET_URL } from "./AuthForm";
 const MAX_SIZE = 50 * 1024 * 1024; // 50 Mo, aligné sur la limite du bucket
 
 export default function Drive({ user }: { user: User }) {
+  const dialog = useDialog();
   const supabase = getSupabase();
   const [files, setFiles] = useState<FileRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,7 +77,7 @@ export default function Drive({ user }: { user: User }) {
   );
 
   async function remove(f: FileRow) {
-    if (!window.confirm(`Supprimer « ${f.name} » ? Cette action est définitive.`)) return;
+    if (!(await dialog.confirm({ title: "Supprimer le fichier ?", message: `« ${f.name} » sera supprimé définitivement.`, confirmLabel: "Supprimer" }))) return;
     setError(null);
     const { error: stErr } = await supabase.storage.from(BUCKET).remove([f.path]);
     if (stErr) return setError(stErr.message);

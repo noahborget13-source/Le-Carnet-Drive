@@ -1,5 +1,6 @@
 "use client";
 
+import { useDialog } from "../Dialogs";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   KIND_LABEL,
@@ -39,6 +40,7 @@ type Props = {
 };
 
 export default function TeacherClass({ userId, cls, profiles, onDeleted, onProfilesChanged }: Props) {
+  const dialog = useDialog();
   const es = getEs();
   const [posts, setPosts] = useState<Post[]>([]);
   const [subs, setSubs] = useState<Submission[]>([]);
@@ -96,12 +98,11 @@ export default function TeacherClass({ userId, cls, profiles, onDeleted, onProfi
   }
 
   async function deleteClass() {
-    if (
-      !window.confirm(
-        `Supprimer la classe « ${cls.name} » ? Les publications, devoirs et rendus de cette classe seront supprimés (tes fichiers de la bibliothèque sont conservés).`
-      )
-    )
-      return;
+    if (!(await dialog.confirm({
+      title: "Supprimer la classe ?",
+      message: `« ${cls.name} »\nLes publications, devoirs et rendus de cette classe seront supprimés (tes fichiers de la bibliothèque sont conservés).`,
+      confirmLabel: "Supprimer",
+    }))) return;
     const { error } = await es.from("es_classes").delete().eq("id", cls.id);
     if (error) setError(error.message);
     else onDeleted();
