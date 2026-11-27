@@ -113,6 +113,12 @@ export default function TeacherClass({ userId, cls, profiles, onDeleted, onProfi
       <div className="class-head">
         <div>
           <h2>{cls.name}</h2>
+          {members.length > 0 && (
+            <p className="login-count" title="Élèves ayant déjà tapé leur code">
+              <span className="login-dot on" />
+              {members.filter((id) => !!profiles.get(id)?.last_login_at).length} / {members.length} élèves connectés
+            </p>
+          )}
         </div>
         <button className="danger" onClick={deleteClass}>Supprimer la classe</button>
       </div>

@@ -818,3 +818,12 @@ button.danger-solid{background:#d23f45;border-color:#d23f45;color:#fff}
 .move-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;max-height:50vh;overflow:auto}
 .move-list button{width:100%;text-align:left;display:flex;align-items:center;gap:8px;min-height:42px}
 .move-list button:disabled{opacity:.5}
+
+/* Indicateur d'élèves connectés */
+.login-count{margin:4px 0 0;font-size:.85rem;color:var(--text-dim)}
+.login-summary{border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:12px;background:var(--panel);display:flex;flex-direction:column;gap:8px}
+.login-summary-top{display:flex;align-items:baseline;gap:8px}
+.login-summary-top strong{font-size:1.25rem}
+.login-summary p{margin:0}
+.login-bar{height:8px;border-radius:4px;background:rgba(229,72,77,.25);overflow:hidden}
+.login-bar span{display:block;height:100%;background:#2fb36d;border-radius:4px;transition:width .3s}

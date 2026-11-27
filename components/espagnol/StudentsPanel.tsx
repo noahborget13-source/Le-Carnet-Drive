@@ -116,6 +116,18 @@ export default function StudentsPanel({ classId, className, members, profiles, c
         <p className="muted empty">Aucun élève pour l&apos;instant.</p>
       ) : (
         <>
+          <div className="login-summary">
+            <div className="login-summary-top">
+              <strong>{rows.filter((r) => r.loggedIn).length} / {rows.length}</strong>
+              <span className="muted small">élèves connectés au moins une fois</span>
+            </div>
+            <div className="login-bar" role="progressbar" aria-valuemin={0} aria-valuemax={rows.length} aria-valuenow={rows.filter((r) => r.loggedIn).length}>
+              <span style={{ width: `${(rows.filter((r) => r.loggedIn).length / rows.length) * 100}%` }} />
+            </div>
+            {rows.some((r) => !r.loggedIn) && (
+              <p className="muted small">Pas encore connectés : {rows.filter((r) => !r.loggedIn).map((r) => r.name).join(", ")}</p>
+            )}
+          </div>
           <div className="post-actions" style={{ marginTop: 0, marginBottom: 10 }}>
             <button onClick={printList}>🖨 Imprimer les codes</button>
             <button onClick={copyList}>Copier la liste</button>
